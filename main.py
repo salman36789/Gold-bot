@@ -103,5 +103,5 @@ class MainView(discord.ui.View):
 async def menu(ctx):
     await ctx.send("Character Management\nCharacter Creation", view=MainView())
 
-bot.run('DISCORD_TOKEN')
+bot.run('MTQ2Nzg3OTA5MjczNTk3MTM5OQ.GAzZUL.3lY58qz1SfX_S1NllK43P6XFK4GnmGFcUSgPaA')
 
