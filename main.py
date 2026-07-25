@@ -275,5 +275,16 @@ async def editchar_cmd(ctx, member: discord.Member):
 async def forgeid_cmd(ctx):
     await ctx.send(f"🎭 أهلاً بك يا مزور الهويات ({ctx.author.mention}). تم تفعيل وضع التزوير بنجاح.")
 
+@bot.command(name="امسح")
+@commands.has_any_role(ADMIN_ROLE_NAME)
+async def clear_messages(ctx, amount: int = 10):
+    await ctx.channel.purge(limit=amount + 1)
+    msg = await ctx.send(f"🧹 تم حذف {amount} رسالة بنجاح.")
+    await discord.utils.sleep_until(discord.utils.utcnow() + discord.utils.timedelta(seconds=3))
+    try:
+        await msg.delete()
+    except:
+        pass
+
 bot.run(os.getenv('TOKEN'))
 
