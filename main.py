@@ -149,20 +149,18 @@ class CharacterSelect(discord.ui.Select):
             await interaction.response.send_modal(RegistrationModal())
             
         elif self.values[0] == "Character Login":
-            # جلب الشخصيات المقبولة (active) فقط للمستخدم
             c.execute("SELECT identity_id, name FROM players WHERE discord_id = ? AND status = 'active'", (user_id,))
             active_chars = c.fetchall()
             
             if active_chars:
                 await interaction.response.send_message("اختر الشخصية التي تريد تسجيل الدخول بها:", view=LoginView(active_chars), ephemeral=True)
             else:
-                # التحقق هل لديه شخصيات بانتظار الموافقة أم أنه لم يسجل أصلاً
                 c.execute("SELECT COUNT(*) FROM players WHERE discord_id = ?", (user_id,))
                 total_chars = c.fetchone()[0]
                 if total_chars > 0:
-                    await interaction.response.send_message("❌ لديك شخصيات مسجلة ولكنها لم تقبل من الإدارة بعد (بانتظار الموافقة).", ephemeral=True)
+                    await interaction.response.send_message("❌ لديك شخصيات مسجلة ولكنها لم تقبَل من الإدارة بعد (بانتظار الموافقة).", ephemeral=True)
                 else:
-                    await interaction.response.send_message("❌ أنت لم تقم بإنشاء أي شخصية بعد! قم بالضغط على (Create Character) لإنشاء شخصيتك الأولى.", ephemeral=True)
+                    await interaction.response.send_message("❌ أنت لم تقم بإنشاء أي شخصية بعد! قم بالضغط على (Create Character) من القائمة لإنشاء شخصيتك الأولى.", ephemeral=True)
             
         elif self.values[0] == "Character Logout":
             await interaction.response.send_message("تم تسجيل الخروج من القيم بنجاح.", ephemeral=True)
@@ -186,8 +184,8 @@ class CharacterView(discord.ui.View):
 
 @bot.command(name="character")
 async def character_command(ctx):
-    # رابط الصورة الدائم والثابت
-    image_url = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop" 
+    # رابط صورتك الخاص الذي أرسلته في البداية
+    image_url = "https://media.discordapp.com/attachments/1265738870128443505/1397734898519150654/Screenshot_20260726_012651.jpg" 
     
     embed = discord.Embed(title="Character Management", description="Character Creation", color=discord.Color.gold())
     embed.set_image(url=image_url)
