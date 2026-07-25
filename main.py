@@ -24,9 +24,6 @@ intents = discord.Intents.default()
 intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-ADMIN_CHANNEL_ID = 123456789012345678 # ضع أيدي قناة الإدارة هنا
-LOG_CHANNEL_ID = 876543210987654321   # ضع أيدي قناة اللوق هنا
-
 class RejectModal(discord.ui.Modal, title='سبب الرفض'):
     reason = discord.ui.TextInput(label='السبب', style=discord.TextStyle.paragraph)
     
@@ -38,10 +35,7 @@ class RejectModal(discord.ui.Modal, title='سبب الرفض'):
         self.original_message = original_message
         
     async def on_submit(self, interaction: discord.Interaction):
-        log_channel = bot.get_channel(LOG_CHANNEL_ID)
-        if log_channel:
-            await log_channel.send(f"❌ تم رفض الشخصية {self.char_name} (الهوية: {self.identity_id})\nالسبب: {self.reason.value}")
-        await interaction.response.send_message("تم رفض الطلب وإرسال اللوق.", ephemeral=True)
+        await interaction.response.send_message(f"❌ تم رفض الشخصية {self.char_name} (الهوية: {self.identity_id})\nالسبب: {self.reason.value}", ephemeral=True)
         await self.original_message.delete()
 
 class ApproveView(discord.ui.View):
@@ -56,10 +50,7 @@ class ApproveView(discord.ui.View):
     async def approve(self, interaction: discord.Interaction, button: discord.ui.Button):
         c.execute("UPDATE players SET status = 'active' WHERE discord_id = ? AND identity_id = ?", (self.member_id, self.identity_id))
         conn.commit()
-        log_channel = bot.get_channel(LOG_CHANNEL_ID)
-        if log_channel:
-            await log_channel.send(f"✅ تم قبول الشخصية {self.char_name} (رقم الهوية: {self.identity_id})")
-        await interaction.response.send_message(f"تم قبول الشخصية {self.char_name} بنجاح!")
+        await interaction.response.send_message(f"✅ تم قبول الشخصية {self.char_name} (رقم الهوية: {self.identity_id}) بنجاح!")
         self.stop()
         
     @discord.ui.button(label="رفض", style=discord.ButtonStyle.red)
@@ -92,20 +83,18 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
                   (user_id, new_identity, self.name.value, self.birthdate.value, self.birthplace.value, self.bio.value, 1000, 'pending'))
         conn.commit()
         
-        admin_channel = bot.get_channel(ADMIN_CHANNEL_ID)
-        if admin_channel:
-            msg = await admin_channel.send(
-                f"طلب تسجيل شخصية جديدة من {interaction.user.mention}\n"
-                f"🆔 **رقم الهوية العشوائي:** {new_identity}\n"
-                f"👤 **اسم الشخصية:** {self.name.value}\n"
-                f"📅 **المواليد:** {self.birthdate.value}\n"
-                f"🌍 **مكان الولادة:** {self.birthplace.value}\n"
-                f"📖 **فكرة الشخصية:** {self.bio.value}", 
-                view=None
-            )
-            await msg.edit(view=ApproveView(user_id, self.name.value, new_identity, msg))
+        # إرسال طلب القبول مباشرة في نفس الشات للسهولة والتجربة
+        msg = await interaction.channel.send(
+            f"🔔 **طلب تسجيل شخصية جديدة من المدير/العضو:** {interaction.user.mention}\n"
+            f"🆔 **رقم الهوية:** `{new_identity}`\n"
+            f"👤 **اسم الشخصية:** {self.name.value}\n"
+            f"📅 **المواليد:** {self.birthdate.value}\n"
+            f"🌍 **مكان الولادة:** {self.birthplace.value}\n"
+            f"📖 **الفكرة:** {self.bio.value}"
+        )
+        await msg.edit(view=ApproveView(user_id, self.name.value, new_identity, msg))
             
-        await interaction.response.send_message(f"تم إرسال طلبك للإدارة! رقم هويتك هو: **{new_identity}** (بانتظار الموافقة).", ephemeral=True)
+        await interaction.response.send_message(f"تم إرسال طلبك! رقم هويتك هو: **{new_identity}** (بانتظار الموافقة بالضغط على زر قبول أسفل الرسالة).", ephemeral=True)
 
 class LoginSelect(discord.ui.Select):
     def __init__(self, characters):
@@ -154,12 +143,12 @@ class CharacterSelect(discord.ui.Select):
                 c.execute("SELECT COUNT(*) FROM players WHERE discord_id = ?", (user_id,))
                 total_chars = c.fetchone()[0]
                 if total_chars > 0:
-                    await interaction.response.send_message("❌ لديك شخصيات مسجلة ولكنها لم تقبَل من الإدارة بعد (بانتظار الموافقة).", ephemeral=True)
+                    await interaction.response.send_message("❌ لديك شخصيات مسجلة ولكنها لم تقبَل من الإدارة بعد (اضغط على زر قبول أخضر أسفل رسالتها).", ephemeral=True)
                 else:
-                    await interaction.response.send_message("❌ أنت لم تقم بإنشاء أي شخصية بعد! قم بالضغط على (Create Character) من القائمة لإنشاء شخصيتك الأولى.", ephemeral=True)
+                    await interaction.response.send_message("❌ أنت لم تقم بإنشاء أي شخصية بعد! قم بالضغط على (Create Character) لإنشاء شخصيتك الأولى.", ephemeral=True)
             
         elif self.values[0] == "Character Logout":
-            await interaction.response.send_message("تم تسجيل الخروج من القيم بنجاح.", ephemeral=True)
+            await interaction.response.send_message("تم تسجيل الخروج بنجاح.", ephemeral=True)
             
         elif self.values[0] == "Show identity":
             c.execute("SELECT identity_id, name, birthdate, birthplace, balance, status FROM players WHERE discord_id = ?", (user_id,))
@@ -171,7 +160,7 @@ class CharacterSelect(discord.ui.Select):
                     text += f"\n**الشخصية {idx}:**\n- 🆔 الهوية: `{p[0]}`\n- 👤 الاسم: {p[1]}\n- 📅 المواليد: {p[2]}\n- 🌍 مكان الولادة: {p[3]}\n- 💰 الرصيد: {p[4]}\n- 📊 الحالة: {status_text}\n"
                 await interaction.response.send_message(text, ephemeral=True)
             else:
-                await interaction.response.send_message("❌ ليس لديك أي شخصيات مسجلة! قم بإنشاء شخصية أولاً.", ephemeral=True)
+                await interaction.response.send_message("❌ ليس لديك أي شخصيات مسجلة!", ephemeral=True)
 
 class CharacterView(discord.ui.View):
     def __init__(self):
@@ -180,7 +169,7 @@ class CharacterView(discord.ui.View):
 
 @bot.command(name="character")
 async def character_command(ctx):
-    # رابط صورتك الخاص الذي أرسلته
+    # رابط صورتك الشخصية المباشر والصحيح
     image_url = "https://media.discordapp.com/attachments/1265738870128443505/1397734898519150654/Screenshot_20260726_012651.jpg"
     
     embed = discord.Embed(title="Character Management", description="Character Creation", color=discord.Color.gold())
