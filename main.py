@@ -27,7 +27,6 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 LOG_CHANNEL_ID = 1530708101077012653
 
-# نافذة سبب الرفض
 class RejectModal(discord.ui.Modal, title='سبب الرفض'):
     reason = discord.ui.TextInput(label='السبب', style=discord.TextStyle.paragraph)
     
@@ -45,7 +44,6 @@ class RejectModal(discord.ui.Modal, title='سبب الرفض'):
         await interaction.response.send_message("تم رفض الطلب وإرسال اللوق بنجاح.", ephemeral=True)
         await self.original_message.delete()
 
-# أزرار الإدارة للتحكم الكامل (قبول، رفض، تعديل، حذف) بالطلب
 class AdminControlView(discord.ui.View):
     def __init__(self, member_id, char_name, identity_id, original_message):
         super().__init__(timeout=None)
@@ -71,7 +69,7 @@ class AdminControlView(discord.ui.View):
         await interaction.response.send_modal(RejectModal(self.member_id, self.char_name, self.identity_id, self.original_message))
 
     @discord.ui.button(label="حذف الشخصية", style=discord.ButtonStyle.secondary)
-    async def delete_char(self, interaction: discord.Interaction, button: discord.ui.Button):
+    async def delete_char_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         c.execute("DELETE FROM players WHERE identity_id = ?", (self.identity_id,))
         conn.commit()
         
@@ -83,7 +81,6 @@ class AdminControlView(discord.ui.View):
         await self.original_message.delete()
         self.stop()
 
-# مودال إنشاء شخصية جديدة
 class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديدة'):
     first_name = discord.ui.TextInput(label='الاسم الأول', placeholder='أدخل الاسم الأول...', min_length=2)
     last_name = discord.ui.TextInput(label='الاسم الثاني', placeholder='أدخل الاسم الثاني...', min_length=2)
@@ -127,7 +124,6 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             
         await interaction.response.send_message(f"تم إرسال طلبك للإدارة! رقم هويتك هو: **{new_identity}** (بانتظار الموافقة).", ephemeral=True)
 
-# قائمة تسجيل الدخول
 class LoginSelect(discord.ui.Select):
     def __init__(self, characters):
         options = [discord.SelectOption(label=f"{p[1]} {p[2]}", value=str(p[0]), description=f"رقم الهوية: {p[0]}") for p in characters]
@@ -147,7 +143,6 @@ class LoginView(discord.ui.View):
         super().__init__()
         self.add_item(LoginSelect(characters))
 
-# القائمة الرئيسية للاعبين (إنشاء، تسجيل دخول، عرض الهويات فقط)
 class CharacterSelect(discord.ui.Select):
     def __init__(self):
         options = [
@@ -194,6 +189,64 @@ async def character_command(ctx):
     embed = discord.Embed(title="Character Management", description="Character Creation", color=discord.Color.gold())
     embed.set_image(url=image_url)
     await ctx.send(embed=embed, view=CharacterView())
+
+# --- قائمة اختيار الشخصية للحذف أو التعديل عبر الإدارة ---
+class AdminSelectChar(discord.ui.Select):
+    def __init__(self, characters, action_type):
+        self.action_type = action_type
+        options = [discord.SelectOption(label=f"{p[1]} {p[2]} (هوية: {p[0]})", value=str(p[0])) for p in characters]
+        super().__init__(placeholder="اختر الشخصية المطلوبة...", options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        identity_id = int(self.values[0])
+        if self.action_type == "delete":
+            c.execute("DELETE FROM players WHERE identity_id = ?", (identity_id,))
+            conn.commit()
+            await interaction.response.send_message(f"🗑️ تم حذف الشخصية ذات الهوية (`{identity_id}`) بنجاح.", ephemeral=True)
+        elif self.action_type == "edit":
+            await interaction.response.send_modal(AdminEditModal(identity_id))
+
+class AdminCharView(discord.ui.View):
+    def __init__(self, characters, action_type):
+        super().__init__()
+        self.add_item(AdminSelectChar(characters, action_type))
+
+class AdminEditModal(discord.ui.Modal, title='تعديل بيانات الشخصية'):
+    first_name = discord.ui.TextInput(label='الاسم الأول الجديد', placeholder='أدخل الاسم الأول...')
+    last_name = discord.ui.TextInput(label='الاسم الثاني الجديد', placeholder='أدخل الاسم الثاني...')
+    birthplace = discord.ui.TextInput(label='مكان الولادة الجديد', placeholder='أدخل مكان الولادة...')
+    bio = discord.ui.TextInput(label='فكرة الشخصية الجديدة', style=discord.TextStyle.paragraph)
+
+    def __init__(self, identity_id):
+        super().__init__()
+        self.identity_id = identity_id
+
+    async def on_submit(self, interaction: discord.Interaction):
+        c.execute("UPDATE players SET first_name = ?, last_name = ?, birthplace = ?, bio = ? WHERE identity_id = ?", 
+                  (self.first_name.value, self.last_name.value, self.birthplace.value, self.bio.value, self.identity_id))
+        conn.commit()
+        await interaction.response.send_message(f"✅ تم تحديث بيانات الشخصية ذات الهوية (`{self.identity_id}`) بنجاح!", ephemeral=True)
+
+# --- أوامر الإدارة الجديدة بالمنشن فقط ---
+@bot.command(name="deletechar")
+@commands.has_permissions(administrator=True)
+async def deletechar_cmd(ctx, member: discord.Member):
+    c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (member.id,))
+    chars = c.fetchall()
+    if chars:
+        await ctx.send(f"اختر الشخصية التي تريد حذفها للـعضو {member.mention}:", view=AdminCharView(chars, "delete"))
+    else:
+        await ctx.send("❌ هذا العضو ليس لديه أي شخصيات مسجلة.")
+
+@bot.command(name="editchar")
+@commands.has_permissions(administrator=True)
+async def editchar_cmd(ctx, member: discord.Member):
+    c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (member.id,))
+    chars = c.fetchall()
+    if chars:
+        await ctx.send(f"اختر الشخصية التي تريد تعديلها للعضو {member.mention}:", view=AdminCharView(chars, "edit"))
+    else:
+        await ctx.send("❌ هذا العضو ليس لديه أي شخصيات مسجلة.")
 
 bot.run(os.getenv('TOKEN'))
 
