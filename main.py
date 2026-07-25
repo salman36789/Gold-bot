@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 import sqlite3
+import os
 
 conn = sqlite3.connect('rp_system.db')
 c = conn.cursor()
@@ -103,5 +104,5 @@ class MainView(discord.ui.View):
 async def menu(ctx):
     await ctx.send("Character Management\nCharacter Creation", view=MainView())
 
-bot.run('MTQ2Nzg3OTA5MjczNTk3MTM5OQ.GAzZUL.3lY58qz1SfX_S1NllK43P6XFK4GnmGFcUSgPaA')
+bot.run(os.getenv('TOKEN'))
 
