@@ -4,7 +4,6 @@ import sqlite3
 import os
 import random
 
-# إعداد قاعدة البيانات (تخزين دائم لا يمسح الشخصيات عند تحديث الكود)
 conn = sqlite3.connect('rp_system.db')
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS players (
@@ -23,12 +22,12 @@ conn.commit()
 
 intents = discord.Intents.default()
 intents.message_content = True
-intents.members = True  # مطلوب للتحقق من رتب الأعضاء
+intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 LOG_CHANNEL_ID = 1530708101077012653
-ADMIN_ROLE_NAME = "الإدارة"  # رتبة الإدارة
-FORGER_ROLE_NAME = "Forged"  # رتبة المزور المخصصة
+ADMIN_ROLE_NAME = "الإدارة"
+FORGER_ROLE_NAME = "Forged"
 
 class RejectModal(discord.ui.Modal, title='سبب الرفض'):
     reason = discord.ui.TextInput(label='السبب', style=discord.TextStyle.paragraph)
@@ -251,7 +250,6 @@ class AdminEditModal(discord.ui.Modal, title='تعديل بيانات الشخص
         conn.commit()
         await interaction.response.send_message(f"✅ تم تحديث بيانات الشخصية ذات الهوية (`{self.identity_id}`) بنجاح!", ephemeral=True)
 
-# أوامر الإدارة المشروطة برتبة الإدارة
 @bot.command(name="deletechar")
 @commands.has_any_role(ADMIN_ROLE_NAME)
 async def deletechar_cmd(ctx, member: discord.Member):
@@ -272,7 +270,6 @@ async def editchar_cmd(ctx, member: discord.Member):
     else:
         await ctx.send("❌ هذا العضو ليس لديه أي شخصيات مسجلة.")
 
-# مثال على أمر خاص برتبة المزور (Forged) لتزوير هوية أو التخفي
 @bot.command(name="forgeid")
 @commands.has_any_role(FORGER_ROLE_NAME)
 async def forgeid_cmd(ctx):
