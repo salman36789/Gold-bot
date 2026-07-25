@@ -148,6 +148,7 @@ class CharacterSelect(discord.ui.Select):
         options = [
             discord.SelectOption(label="Create Character", description="لإنشاء شخصية جديدة (بحد أقصى 3)"),
             discord.SelectOption(label="Character Login", description="لتسجيل الدخول بالشخصية"),
+            discord.SelectOption(label="Character Logout", description="لتسجيل الخروج من الشخصية الحالية"),
             discord.SelectOption(label="Show identity", description="لعرض الهويات المسجلة")
         ]
         super().__init__(placeholder="Choose an action you want to make", options=options)
@@ -165,6 +166,9 @@ class CharacterSelect(discord.ui.Select):
                 await interaction.response.send_message("اختر الشخصية لتسجيل الدخول بها:", view=LoginView(active_chars), ephemeral=True)
             else:
                 await interaction.response.send_message("❌ ليس لديك شخصيات مقبولة بعد.", ephemeral=True)
+                
+        elif self.values[0] == "Character Logout":
+            await interaction.response.send_message("✅ تم تسجيل الخروج من الشخصية الحالية بنجاح.", ephemeral=True)
             
         elif self.values[0] == "Show identity":
             c.execute("SELECT identity_id, first_name, last_name, birthdate, birthplace, balance, status FROM players WHERE discord_id = ?", (user_id,))
@@ -190,7 +194,6 @@ async def character_command(ctx):
     embed.set_image(url=image_url)
     await ctx.send(embed=embed, view=CharacterView())
 
-# --- قائمة اختيار الشخصية للحذف أو التعديل عبر الإدارة ---
 class AdminSelectChar(discord.ui.Select):
     def __init__(self, characters, action_type):
         self.action_type = action_type
@@ -227,14 +230,13 @@ class AdminEditModal(discord.ui.Modal, title='تعديل بيانات الشخص
         conn.commit()
         await interaction.response.send_message(f"✅ تم تحديث بيانات الشخصية ذات الهوية (`{self.identity_id}`) بنجاح!", ephemeral=True)
 
-# --- أوامر الإدارة الجديدة بالمنشن فقط ---
 @bot.command(name="deletechar")
 @commands.has_permissions(administrator=True)
 async def deletechar_cmd(ctx, member: discord.Member):
     c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (member.id,))
     chars = c.fetchall()
     if chars:
-        await ctx.send(f"اختر الشخصية التي تريد حذفها للـعضو {member.mention}:", view=AdminCharView(chars, "delete"))
+        await ctx.send(f"اختر الشخصية التي تريد حذفها للعضو {member.mention}:", view=AdminCharView(chars, "delete"))
     else:
         await ctx.send("❌ هذا العضو ليس لديه أي شخصيات مسجلة.")
 
