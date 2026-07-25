@@ -75,7 +75,6 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
     async def on_submit(self, interaction: discord.Interaction):
         user_id = interaction.user.id
         
-        # التحقق من عدد الشخصيات (الحد الأقصى 3)
         c.execute("SELECT COUNT(*) FROM players WHERE discord_id = ?", (user_id,))
         count = c.fetchone()[0]
         
@@ -83,19 +82,16 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             await interaction.response.send_message("❌ عذراً، لا يمكنك إنشاء أكثر من 3 شخصيات!", ephemeral=True)
             return
 
-        # توليد رقم هوية عشوائي يبدأ بالرقم 3 ومكون من 6 أرقام (غير مكرر)
         while True:
             new_identity = random.randint(300000, 399999)
             c.execute("SELECT 1 FROM players WHERE identity_id = ?", (new_identity,))
             if not c.fetchone():
                 break
 
-        # إدخال البيانات في قاعدة البيانات
         c.execute("INSERT INTO players (discord_id, identity_id, name, birthdate, birthplace, bio, balance, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
                   (user_id, new_identity, self.name.value, self.birthdate.value, self.birthplace.value, self.bio.value, 1000, 'pending'))
         conn.commit()
         
-        # إرسال الطلب للإدارة
         admin_channel = bot.get_channel(ADMIN_CHANNEL_ID)
         if admin_channel:
             msg = await admin_channel.send(
@@ -184,8 +180,8 @@ class CharacterView(discord.ui.View):
 
 @bot.command(name="character")
 async def character_command(ctx):
-    # رابط صورتك الخاص الذي أرسلته في البداية
-    image_url = "https://media.discordapp.com/attachments/1265738870128443505/1397734898519150654/Screenshot_20260726_012651.jpg" 
+    # رابط صورتك الخاص الذي أرسلته
+    image_url = "https://media.discordapp.com/attachments/1265738870128443505/1397734898519150654/Screenshot_20260726_012651.jpg"
     
     embed = discord.Embed(title="Character Management", description="Character Creation", color=discord.Color.gold())
     embed.set_image(url=image_url)
