@@ -23,9 +23,12 @@ conn.commit()
 
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True  # مطلوب للتحقق من رتب الأعضاء
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 LOG_CHANNEL_ID = 1530708101077012653
+ADMIN_ROLE_NAME = "الإدارة"  # رتبة الإدارة
+FORGER_ROLE_NAME = "Forged"  # رتبة المزور المخصصة
 
 class RejectModal(discord.ui.Modal, title='سبب الرفض'):
     reason = discord.ui.TextInput(label='السبب', style=discord.TextStyle.paragraph)
@@ -52,8 +55,17 @@ class AdminControlView(discord.ui.View):
         self.identity_id = identity_id
         self.original_message = original_message
         
+    def check_admin(self, interaction: discord.Interaction):
+        if any(role.name == ADMIN_ROLE_NAME for role in interaction.user.roles) or interaction.user.guild_permissions.administrator:
+            return True
+        return False
+
     @discord.ui.button(label="قبول", style=discord.ButtonStyle.green)
     async def approve(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.check_admin(interaction):
+            await interaction.response.send_message("❌ عذراً، هذه الأزرار مخصصة للإدارة فقط!", ephemeral=True)
+            return
+
         c.execute("UPDATE players SET status = 'active' WHERE discord_id = ? AND identity_id = ?", (self.member_id, self.identity_id))
         conn.commit()
         
@@ -66,10 +78,17 @@ class AdminControlView(discord.ui.View):
         
     @discord.ui.button(label="رفض", style=discord.ButtonStyle.red)
     async def reject(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.check_admin(interaction):
+            await interaction.response.send_message("❌ عذراً، هذه الأزرار مخصصة للإدارة فقط!", ephemeral=True)
+            return
         await interaction.response.send_modal(RejectModal(self.member_id, self.char_name, self.identity_id, self.original_message))
 
     @discord.ui.button(label="حذف الشخصية", style=discord.ButtonStyle.secondary)
     async def delete_char_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not self.check_admin(interaction):
+            await interaction.response.send_message("❌ عذراً، هذه الأزرار مخصصة للإدارة فقط!", ephemeral=True)
+            return
+
         c.execute("DELETE FROM players WHERE identity_id = ?", (self.identity_id,))
         conn.commit()
         
@@ -127,14 +146,14 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
 class LoginSelect(discord.ui.Select):
     def __init__(self, characters):
         options = [discord.SelectOption(label=f"{p[1]} {p[2]}", value=str(p[0]), description=f"رقم الهوية: {p[0]}") for p in characters]
-        super().__init__(placeholder="اختر الشخصية لتسجيل الدخول بها...", options=options)
+        super().__init__(placeholder="اختر الهوية المطلوبة للتبديل...", options=options)
 
     async def callback(self, interaction: discord.Interaction):
         selected_identity = int(self.values[0])
         c.execute("SELECT first_name, last_name FROM players WHERE identity_id = ?", (selected_identity,))
         char = c.fetchone()
         if char:
-            await interaction.response.send_message(f"✅ تم تسجيل الدخول بنجاح بالشخصية: **{char[0]} {char[1]}** (هوية: `{selected_identity}`)", ephemeral=True)
+            await interaction.response.send_message(f"✅ تم التبديل وتفعيل الهوية بنجاح: **{char[0]} {char[1]}** (هوية: `{selected_identity}`)", ephemeral=True)
         else:
             await interaction.response.send_message("❌ لم يتم العثور على الشخصية.", ephemeral=True)
 
@@ -148,6 +167,7 @@ class CharacterSelect(discord.ui.Select):
         options = [
             discord.SelectOption(label="Create Character", description="لإنشاء شخصية جديدة (بحد أقصى 3)"),
             discord.SelectOption(label="Character Login", description="لتسجيل الدخول بالشخصية"),
+            discord.SelectOption(label="Change Identity", description="لتغيير أو التبديل بين هوياتك المسجلة"),
             discord.SelectOption(label="Character Logout", description="لتسجيل الخروج من الشخصية الحالية"),
             discord.SelectOption(label="Show identity", description="لعرض الهويات المسجلة")
         ]
@@ -159,11 +179,12 @@ class CharacterSelect(discord.ui.Select):
         if self.values[0] == "Create Character":
             await interaction.response.send_modal(RegistrationModal())
             
-        elif self.values[0] == "Character Login":
+        elif self.values[0] in ["Character Login", "Change Identity"]:
             c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ? AND status = 'active'", (user_id,))
             active_chars = c.fetchall()
             if active_chars:
-                await interaction.response.send_message("اختر الشخصية لتسجيل الدخول بها:", view=LoginView(active_chars), ephemeral=True)
+                action_word = "تسجيل الدخول" if self.values[0] == "Character Login" else "تغيير الهوية إلى"
+                await interaction.response.send_message(f"اختر الشخصية المراد {action_word}:", view=LoginView(active_chars), ephemeral=True)
             else:
                 await interaction.response.send_message("❌ ليس لديك شخصيات مقبولة بعد.", ephemeral=True)
                 
@@ -230,8 +251,9 @@ class AdminEditModal(discord.ui.Modal, title='تعديل بيانات الشخص
         conn.commit()
         await interaction.response.send_message(f"✅ تم تحديث بيانات الشخصية ذات الهوية (`{self.identity_id}`) بنجاح!", ephemeral=True)
 
+# أوامر الإدارة المشروطة برتبة الإدارة
 @bot.command(name="deletechar")
-@commands.has_permissions(administrator=True)
+@commands.has_any_role(ADMIN_ROLE_NAME)
 async def deletechar_cmd(ctx, member: discord.Member):
     c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (member.id,))
     chars = c.fetchall()
@@ -241,7 +263,7 @@ async def deletechar_cmd(ctx, member: discord.Member):
         await ctx.send("❌ هذا العضو ليس لديه أي شخصيات مسجلة.")
 
 @bot.command(name="editchar")
-@commands.has_permissions(administrator=True)
+@commands.has_any_role(ADMIN_ROLE_NAME)
 async def editchar_cmd(ctx, member: discord.Member):
     c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (member.id,))
     chars = c.fetchall()
@@ -249,6 +271,12 @@ async def editchar_cmd(ctx, member: discord.Member):
         await ctx.send(f"اختر الشخصية التي تريد تعديلها للعضو {member.mention}:", view=AdminCharView(chars, "edit"))
     else:
         await ctx.send("❌ هذا العضو ليس لديه أي شخصيات مسجلة.")
+
+# مثال على أمر خاص برتبة المزور (Forged) لتزوير هوية أو التخفي
+@bot.command(name="forgeid")
+@commands.has_any_role(FORGER_ROLE_NAME)
+async def forgeid_cmd(ctx):
+    await ctx.send(f"🎭 أهلاً بك يا مزور الهويات ({ctx.author.mention}). تم تفعيل وضع التزوير بنجاح.")
 
 bot.run(os.getenv('TOKEN'))
 
