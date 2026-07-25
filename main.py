@@ -11,7 +11,8 @@ c.execute('''CREATE TABLE IF NOT EXISTS players (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, 
                 discord_id INTEGER, 
                 identity_id INTEGER UNIQUE,
-                name TEXT, 
+                first_name TEXT,
+                last_name TEXT, 
                 birthdate TEXT, 
                 birthplace TEXT, 
                 bio TEXT, 
@@ -69,7 +70,8 @@ class ApproveView(discord.ui.View):
         await interaction.response.send_modal(RejectModal(self.member_id, self.char_name, self.identity_id, self.original_message))
 
 class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديدة'):
-    name = discord.ui.TextInput(label='اسم الشخصية', placeholder='أدخل اسم شخصيتك...', min_length=3)
+    first_name = discord.ui.TextInput(label='الاسم الأول', placeholder='أدخل الاسم الأول...', min_length=2)
+    last_name = discord.ui.TextInput(label='الاسم الثاني', placeholder='أدخل الاسم الثاني...', min_length=2)
     birthdate = discord.ui.TextInput(label='مواليد الشخصية', placeholder='مثال: 1998/05/12')
     birthplace = discord.ui.TextInput(label='مكان الولادة', placeholder='أدخل مكان الولادة...')
     bio = discord.ui.TextInput(label='فكرة الشخصية', style=discord.TextStyle.paragraph, placeholder='اكتب قصة أو فكرة شخصيتك هنا...')
@@ -90,8 +92,10 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             if not c.fetchone():
                 break
 
-        c.execute("INSERT INTO players (discord_id, identity_id, name, birthdate, birthplace, bio, balance, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
-                  (user_id, new_identity, self.name.value, self.birthdate.value, self.birthplace.value, self.bio.value, 1000, 'pending'))
+        full_name = f"{self.first_name.value} {self.last_name.value}"
+
+        c.execute("INSERT INTO players (discord_id, identity_id, first_name, last_name, birthdate, birthplace, bio, balance, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+                  (user_id, new_identity, self.first_name.value, self.last_name.value, self.birthdate.value, self.birthplace.value, self.bio.value, 1000, 'pending'))
         conn.commit()
         
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
@@ -99,12 +103,12 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             msg = await log_channel.send(
                 f"🔔 **طلب تسجيل شخصية جديدة من:** {interaction.user.mention}\n"
                 f"🆔 **رقم الهوية:** `{new_identity}`\n"
-                f"👤 **اسم الشخصية:** {self.name.value}\n"
+                f"👤 **الاسم الكامل:** {full_name}\n"
                 f"📅 **المواليد:** {self.birthdate.value}\n"
                 f"🌍 **مكان الولادة:** {self.birthplace.value}\n"
                 f"📖 **الفكرة:** {self.bio.value}"
             )
-            await msg.edit(view=ApproveView(user_id, self.name.value, new_identity, msg))
+            await msg.edit(view=ApproveView(user_id, full_name, new_identity, msg))
             
         await interaction.response.send_message(f"تم إرسال طلبك للإدارة! رقم هويتك هو: **{new_identity}** (بانتظار الموافقة).", ephemeral=True)
 
@@ -112,15 +116,18 @@ class LoginSelect(discord.ui.Select):
     def __init__(self, characters):
         options = []
         for p in characters:
-            options.append(discord.SelectOption(label=p[1], value=str(p[0]), description=f"رقم الهوية: {p[0]}"))
+            # p[0] هو identity_id و p[1] هو first_name و p[2] هو last_name
+            full_n = f"{p[1]} {p[2]}"
+            options.append(discord.SelectOption(label=full_n, value=str(p[0]), description=f"رقم الهوية: {p[0]}"))
         super().__init__(placeholder="اختر الشخصية لتسجيل الدخول بها...", options=options)
 
     async def callback(self, interaction: discord.Interaction):
         selected_identity = int(self.values[0])
-        c.execute("SELECT name FROM players WHERE identity_id = ?", (selected_identity,))
+        c.execute("SELECT first_name, last_name FROM players WHERE identity_id = ?", (selected_identity,))
         char = c.fetchone()
         if char:
-            await interaction.response.send_message(f"✅ تم تسجيل الدخول بنجاح بالشخصية: **{char[0]}** (هوية: `{selected_identity}`)", ephemeral=True)
+            full_n = f"{char[0]} {char[1]}"
+            await interaction.response.send_message(f"✅ تم تسجيل الدخول بنجاح بالشخصية: **{full_n}** (هوية: `{selected_identity}`)", ephemeral=True)
         else:
             await interaction.response.send_message("❌ حدث خطأ ما، لم يتم العثور على الشخصية.", ephemeral=True)
 
@@ -146,7 +153,7 @@ class CharacterSelect(discord.ui.Select):
             await interaction.response.send_modal(RegistrationModal())
             
         elif self.values[0] == "Character Login":
-            c.execute("SELECT identity_id, name FROM players WHERE discord_id = ? AND status = 'active'", (user_id,))
+            c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ? AND status = 'active'", (user_id,))
             active_chars = c.fetchall()
             
             if active_chars:
@@ -163,13 +170,14 @@ class CharacterSelect(discord.ui.Select):
             await interaction.response.send_message("تم تسجيل الخروج بنجاح.", ephemeral=True)
             
         elif self.values[0] == "Show identity":
-            c.execute("SELECT identity_id, name, birthdate, birthplace, balance, status FROM players WHERE discord_id = ?", (user_id,))
+            c.execute("SELECT identity_id, first_name, last_name, birthdate, birthplace, balance, status FROM players WHERE discord_id = ?", (user_id,))
             players = c.fetchall()
             if players:
                 text = "هوياتك المسجلة:\n"
                 for idx, p in enumerate(players, 1):
-                    status_text = "مقبولة ✅" if p[5] == 'active' else "قيد المراجعة ⏳"
-                    text += f"\n**الشخصية {idx}:**\n- 🆔 الهوية: `{p[0]}`\n- 👤 الاسم: {p[1]}\n- 📅 المواليد: {p[2]}\n- 🌍 مكان الولادة: {p[3]}\n- 💰 الرصيد: {p[4]}\n- 📊 الحالة: {status_text}\n"
+                    full_n = f"{p[1]} {p[2]}"
+                    status_text = "مقبولة ✅" if p[6] == 'active' else "قيد المراجعة ⏳"
+                    text += f"\n**الشخصية {idx}:**\n- 🆔 الهوية: `{p[0]}`\n- 👤 الاسم: {full_n}\n- 📅 المواليد: {p[3]}\n- 🌍 مكان الولادة: {p[4]}\n- 💰 الرصيد: {p[5]}\n- 📊 الحالة: {status_text}\n"
                 await interaction.response.send_message(text, ephemeral=True)
             else:
                 await interaction.response.send_message("❌ ليس لديك أي شخصيات مسجلة!", ephemeral=True)
@@ -181,7 +189,6 @@ class CharacterView(discord.ui.View):
 
 @bot.command(name="character")
 async def character_command(ctx):
-    # رابط صورتك الثابت والصحيح بدون معلمات تنتهي صلاحيتها
     image_url = "https://cdn.discordapp.com/attachments/1530705141710327868/1530710244332929034/Screenshot_20260726_012651.jpg"
     
     embed = discord.Embed(title="Character Management", description="Character Creation", color=discord.Color.gold())
