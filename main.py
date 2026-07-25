@@ -83,7 +83,7 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             await interaction.response.send_message("❌ عذراً، لا يمكنك إنشاء أكثر من 3 شخصيات!", ephemeral=True)
             return
 
-        # توليد رقم هوية عشوائي يبدأ بالرقم 3 (مكون من 6 أرقام) والتأكد من عدم تكراره
+        # توليد رقم هوية عشوائي يبدأ بالرقم 3 ومكون من 6 أرقام (غير مكرر)
         while True:
             new_identity = random.randint(300000, 399999)
             c.execute("SELECT 1 FROM players WHERE identity_id = ?", (new_identity,))
@@ -150,7 +150,8 @@ class CharacterView(discord.ui.View):
 
 @bot.command(name="character")
 async def character_command(ctx):
-    image_url = "https://cdn.discordapp.com/attachments/1083467474418659421/1131154011868217344/file_000000003800720a8e065d7001905cc2.png" 
+    # رابط الصورة الجديدة التي أرسلتها
+    image_url = "https://media.discordapp.com/attachments/1265738870128443505/1397734898519150654/Screenshot_20260726_012651.jpg" 
     
     embed = discord.Embed(title="Character Management", description="Character Creation", color=discord.Color.gold())
     embed.set_image(url=image_url)
