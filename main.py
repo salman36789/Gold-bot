@@ -1,5 +1,4 @@
 import discord
-from discord import app_commands
 from discord.ext import commands
 import sqlite3
 import os
@@ -53,11 +52,6 @@ async def on_ready():
     print(f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
         await setup_server_permissions(guild)
-    try:
-        synced = await bot.tree.sync()
-        print(f"Synced {len(synced)} slash commands(s).")
-    except Exception as e:
-        print(e)
     print("Bot is online and running successfully!")
 
 async def setup_server_permissions(guild):
@@ -81,10 +75,10 @@ async def setup_server_permissions(guild):
             if identity_role:
                 await cat.set_permissions(identity_role, read_messages=True, send_messages=False)
 
-def has_trip_permission(interaction: discord.Interaction) -> bool:
-    if interaction.user.guild_permissions.administrator:
+def has_trip_permission(member: discord.Member) -> bool:
+    if member.guild_permissions.administrator:
         return True
-    return any(role.name == REQUIRED_ROLE_NAME for role in interaction.user.roles)
+    return any(role.name == REQUIRED_ROLE_NAME for role in member.roles)
 
 @bot.event
 async def on_member_join(member):
@@ -465,7 +459,7 @@ class TripControlView(discord.ui.View):
 
     @discord.ui.button(label="بدء رحلة", style=discord.ButtonStyle.green, custom_id="start_trip_btn")
     async def start_trip(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not has_trip_permission(interaction):
+        if not has_trip_permission(interaction.user):
             await interaction.response.send_message("ليس لديك الصلاحية لاستخدام هذه الأزرار.", ephemeral=True)
             return
         
@@ -478,27 +472,32 @@ class TripControlView(discord.ui.View):
 
     @discord.ui.button(label="إعصار", style=discord.ButtonStyle.red, custom_id="tornado_btn")
     async def tornado_action(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not has_trip_permission(interaction):
+        if not has_trip_permission(interaction.user):
             await interaction.response.send_message("ليس لديك الصلاحية لاستخدام هذه الأزرار.", ephemeral=True)
             return
         await interaction.response.send_message("⚠️ تنبيه: حالة إعصار للرحلة!", ephemeral=False)
 
     @discord.ui.button(label="تجديد", style=discord.ButtonStyle.blurple, custom_id="renew_btn")
     async def renew_action(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not has_trip_permission(interaction):
+        if not has_trip_permission(interaction.user):
             await interaction.response.send_message("ليس لديك الصلاحية لاستخدام هذه الأزرار.", ephemeral=True)
             return
         await interaction.response.send_message("🔄 تم تجديد الرحلة بنجاح.", ephemeral=False)
 
-# أمر السلاش الخاص بالرحلات مع التحقق من الرتبة والصلاحية
-@bot.tree.command(name="trip", description="إظهار لوحة تحكم الرحلات للإدارة")
-async def trip(interaction: discord.Interaction):
-    if not has_trip_permission(interaction):
-        await interaction.response.send_message("عذراً، لا تمتلك رتبة `GT | Trip Support` أو صلاحية الأدمن لاستخدام هذا الأمر.", ephemeral=True)
+# أمر عادي للرحلات يعمل فوراً بـ !trip
+@bot.command(name="trip")
+async def trip_command(ctx):
+    if not has_trip_permission(ctx.author):
+        await ctx.send("عذراً، لا تمتلك رتبة `GT | Trip Support` أو صلاحية الأدمن لاستخدام هذا الأمر.", delete_after=5)
         return
 
+    try:
+        await ctx.message.delete()
+    except Exception:
+        pass
+
     view = TripControlView()
-    await interaction.response.send_message("✈️ **لوحة تحكم إدارة الرحلات:**\nاختر الإجراء المناسب من الأسفل:", view=view, ephemeral=False)
+    await ctx.send("✈️ **لوحة تحكم إدارة الرحلات:**\nاختر الإجراء المناسب من الأسفل:", view=view)
 
 @bot.command(name="character")
 async def character_command(ctx):
