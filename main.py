@@ -3,6 +3,7 @@ from discord.ext import commands
 import sqlite3
 import os
 import random
+import asyncio
 
 DB_FILE = 'bot_database.db'
 
@@ -33,22 +34,24 @@ LOG_CHANNEL_ID = 1530708101077012653
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
-        print(f"جاري حذف الرومات القديمة وإعادة بناء الهيكل بدون تكرار في: {guild.name}")
+        print(f"جاري تنظيف وحذف الرومات القديمة في: {guild.name}")
         
         # 1. حذف جميع الرومات والأقسام القديمة
         for channel in guild.channels:
             try:
                 await channel.delete()
+                await asyncio.sleep(0.3)
             except Exception as e:
                 print(f"فشل حذف الروم {channel.name}: {e}")
                 
         for category in guild.categories:
             try:
                 await category.delete()
+                await asyncio.sleep(0.3)
             except Exception as e:
                 print(f"فشل حذف القسم {category.name}: {e}")
 
-        # 2. الهيكل الموحد والخالي تماماً من أي تكرار
+        # 2. الهيكل المرتب بدون أي تكرار
         structure = {
             "Gold Town | Rules": [
                 ("🟥 ┃ rules", "text"),
@@ -121,10 +124,11 @@ async def on_ready():
             ]
         }
 
-        # 3. إنشاء الأقسام والرومات بشكل دقيق بدون أي تكرار
+        # 3. إنشاء الأقسام والرومات مع فاصل زمني لضمان دخول الروم داخل قسمه الصحيح
         for category_name, channels in structure.items():
             try:
                 category = await guild.create_category(category_name)
+                await asyncio.sleep(0.5) # انتظار بسيط لثبات القسم
                 print(f"تم إنشاء القسم: {category_name}")
             except Exception as e:
                 print(f"فشل إنشاء القسم {category_name}: {e}")
@@ -134,12 +138,12 @@ async def on_ready():
                 try:
                     if ch_type == "text":
                         await guild.create_text_channel(ch_name, category=category)
-                        print(f"تم إنشاء الروم النصي: {ch_name}")
                     elif ch_type == "voice":
                         await guild.create_voice_channel(ch_name, category=category)
-                        print(f"تم إنشاء الروم الصوتي: {ch_name}")
+                    await asyncio.sleep(0.3) # انتظار بين كل روم والثاني
                 except Exception as e:
                     print(f"فشل إنشاء الروم {ch_name}: {e}")
+        print("✅ تم إعادة بناء السيرفر بنجاح ودون أي تكرار!")
 
 class RejectModal(discord.ui.Modal, title='سبب الرفض'):
     reason = discord.ui.TextInput(label='السبب', style=discord.TextStyle.paragraph)
