@@ -30,7 +30,6 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-# إلغاء أمر المساعدة الافتراضي لمنع تكرار الرسائل
 bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
 LOG_CHANNEL_ID = 1530791985131032656
@@ -42,7 +41,7 @@ async def on_ready():
     print(f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
         await setup_server_permissions(guild)
-    print("البوت يعمل بنجاح، وتم ضبط إعدادات الردود ومنع التكرار!")
+    print("البوت يعمل بنجاح، وتم فصل أوامر الشخصيات والتزوير تماماً!")
 
 async def setup_server_permissions(guild):
     inactive_role = discord.utils.get(guild.roles, name="Inactive")
@@ -428,12 +427,16 @@ class ForgeButtonView(discord.ui.View):
         else:
             await interaction.response.send_message("❌ ليس لديك أي شخصيات مسجلة لتزويرها!", ephemeral=True)
 
+# أمر إدارة الشخصيات الأساسي (إنشاء، دخول، خروج، عرض)
 @bot.command(name="character")
 async def character_command(ctx):
-    embed = discord.Embed(title="Character Management", description="Character Creation, Login & Forgery System", color=discord.Color.gold())
+    embed = discord.Embed(title="Character Management", description="Character Creation, Login & Logout System", color=discord.Color.gold())
     embed.set_image(url=IMAGE_URL)
     await ctx.send(embed=embed, view=CharacterView())
-    
+
+# أمر مستقل تماماً لتزوير الهوية
+@bot.command(name="forge")
+async def forge_command(ctx):
     embed_forge = discord.Embed(title="Forgery System", description="اضغط على الزر أدناه لتزوير هوية شخصيتك:", color=discord.Color.dark_red())
     embed_forge.set_image(url=IMAGE_URL)
     await ctx.send(embed=embed_forge, view=ForgeButtonView())
@@ -451,4 +454,4 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
- 
+، ذ، 
