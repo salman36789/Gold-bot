@@ -4,7 +4,11 @@ import sqlite3
 import os
 import random
 
-conn = sqlite3.connect('rp_system.db')
+DB_FILE = 'rp_system.db'
+if os.path.exists(DB_FILE) and os.path.getsize(DB_FILE) == 0:
+    os.remove(DB_FILE)
+
+conn = sqlite3.connect(DB_FILE, check_same_thread=False)
 c = conn.cursor()
 c.execute('''CREATE TABLE IF NOT EXISTS players (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -287,4 +291,4 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
-
+ 
