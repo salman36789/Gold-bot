@@ -73,7 +73,7 @@ async def on_message(message):
 
 # دالة للتحقق من صحة أيدي سوني (PSN ID Rules)
 def is_valid_psn_id(psn_id):
-شروط أيدي سوني: من 3 إلى 16 حرف، يبدأ بحرف، ويحتوي فقط على حروف، أرقام، _، -
+    # شروط أيدي سوني: من 3 إلى 16 حرف، يبدأ بحرف، ويحتوي فقط على حروف، أرقام، _، -
     pattern = r'^[a-zA-Z][a-zA-Z0-9_-]{2,15}$'
     return bool(re.match(pattern, psn_id))
 
