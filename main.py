@@ -27,62 +27,96 @@ intents.message_content = True
 intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-LOG_CHANNEL_ID = 1530708101077012653
-
-# ترتيب الرتب من الأصغر إلى الأكبر (الأعلى سيكون في الأعلى برمجياً في السيرفر بناءً على القائمة أو الترتيب العكسي للإنشاء)
-# هنا قمنا بترتيبها تصاعدياً لتشمل 6 رتب لكل قسم (الصغرى، الوسطى، العليا) بالإضافة للقيادة
-ADMIN_ROLES_CONFIG = {
-    # قسم الإدارة الصغرى (6 رتب متدرجة من الأصغر للأكبر)
-    "GD | Low Tier 1": discord.Color.from_rgb(200, 230, 201),
-    "GD | Low Tier 2": discord.Color.from_rgb(165, 214, 167),
-    "GD | Low Tier 3": discord.Color.from_rgb(129, 199, 132),
-    "GD | Low Tier 4": discord.Color.from_rgb(102, 187, 106),
-    "GD | Low Tier 5": discord.Color.from_rgb(76, 175, 80),
-    "GD | Low Tier 6": discord.Color.from_rgb(56, 142, 60),
-    
-    # قسم الإدارة الوسطى (6 رتب متدرجة من الأصغر للأكبر)
-    "GD | Middle Tier 1": discord.Color.from_rgb(187, 222, 251),
-    "GD | Middle Tier 2": discord.Color.from_rgb(144, 202, 249),
-    "GD | Middle Tier 3": discord.Color.from_rgb(100, 181, 246),
-    "GD | Middle Tier 4": discord.Color.from_rgb(66, 165, 245),
-    "GD | Middle Tier 5": discord.Color.from_rgb(33, 150, 243),
-    "GD | Middle Tier 6": discord.Color.from_rgb(25, 118, 210),
-    
-    # قسم الإدارة العليا (6 رتب متدرجة من الأصغر للأكبر)
-    "GD | High Tier 1": discord.Color.from_rgb(255, 224, 178),
-    "GD | High Tier 2": discord.Color.from_rgb(255, 204, 128),
-    "GD | High Tier 3": discord.Color.from_rgb(255, 183, 77),
-    "GD | High Tier 4": discord.Color.from_rgb(255, 167, 38),
-    "GD | High Tier 5": discord.Color.from_rgb(255, 152, 0),
-    "GD | High Tier 6": discord.Color.from_rgb(245, 124, 0),
-    
-    # القيادة العليا للسيرفر
-    "GD | Leadership": discord.Color.red()
-}
-
-ADMIN_ROLES = list(ADMIN_ROLES_CONFIG.keys())
-FORGER_ROLE_NAME = "Forged"
+LOG_CHANNEL_ID = 1530708101077012653  # ضع آيدي روم اللوق الخاص بك هنا
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
-        # حذف الرتب القديمة إن وجدت لتحديثها بالكامل
-        for role_name in ADMIN_ROLES:
-            existing_role = discord.utils.get(guild.roles, name=role_name)
-            if existing_role:
-                try:
-                    await existing_role.delete(reason="تحديث الهيكل الإداري الجديد")
-                except Exception as e:
-                    print(f"فشل حذف رتبة {role_name}: {e}")
+        print(f"جاري فحص وتأسيس رومات سيرفر: {guild.name}")
+        
+        # هيكل الأقسام والرومات المطابق للصور
+        structure = {
+            "North Side | Rules .": [
+                ("PROVE • YOUR • SELF", "text", True),
+                ("Rules", "text", True),
+                ("New • Rules", "voice", True),
+                ("Pinned", "voice", True)
+            ],
+            "North Side | Ads .": [
+                ("Announcement", "text", True),
+                ("Update", "voice", True),
+                ("Merge", "voice", True),
+                ("Hints", "voice", True),
+                ("Boosters", "voice", True),
+                ("Partner", "voice", True),
+                ("Shame", "voice", True)
+            ],
+            "NS | Rooms .": [
+                ("Discord.gg/ns5", "text", True),
+                ("NSRP System .2", "voice", True),
+                ("Owner", "text", True),
+                ("Founders", "text", True),
+                ("High Command", "text", True),
+                ("Management", "text", True),
+                ("Programmer", "text", True),
+                ("Respect", "text", True),
+                ("Meeting", "text", True),
+                ("NS | مجلس • نورت .", "voice", True)
+            ],
+            "NS | Support .": [
+                ("Tickets", "text", True),
+                ("Support 1", "voice", True),
+                ("Waiting support .", "voice", True)
+            ],
+            "NS | Sumbit Staff": [
+                ("Ads", "text", True),
+                ("Sumbit • Mangement", "text", True),
+                ("Waiting", "voice", True)
+            ],
+            "North Side Public .": [
+                ("General • chat", "text", True),
+                ("Credit", "text", True),
+                ("Athkar", "text", True),
+                ("Suggestions", "text", True),
+                ("Events", "text", True),
+                ("Server", "text", True)
+            ],
+            "Social": [
+                ("TikTok", "text", True),
+                ("Live-Now", "text", True)
+            ],
+            "North Side iDenitity .": [
+                ("Character • Rules", "text", True),
+                ("Create • Character", "text", True)
+            ]
+        }
 
-        # إنشاء الرتب بالأسماء والألوان الجديدة
-        for role_name, color in ADMIN_ROLES_CONFIG.items():
-            try:
-                await guild.create_role(name=role_name, color=color, reason="إنشاء الهيكل الإداري المتدرج الجديد")
-                print(f"تم إنشاء رتبة: {role_name}")
-            except Exception as e:
-                print(f"فشل إنشاء رتبة {role_name}: {e}")
+        # إنشاء الأقسام والرومات إذا لم تكن موجودة مسبقاً
+        for category_name, channels in structure.items():
+            category = discord.utils.get(guild.categories, name=category_name)
+            if not category:
+                try:
+                    category = await guild.create_category(category_name)
+                    print(تم إنشاء القسم: {category_name})
+                except Exception as e:
+                    print(f"فشل إنشاء القسم {category_name}: {e}")
+                    continue
+
+            for ch_name, ch_type, is_private in channels:
+                existing_ch = discord.utils.get(guild.channels, name=ch_name)
+                if not existing_ch:
+                    try:
+                        overwrites = {
+                            guild.default_role: discord.PermissionOverwrite(read_messages=not is_private, connect=not is_private)
+                        }
+                        if ch_type == "text":
+                            await guild.create_text_channel(ch_name, category=category, overwrites=overwrites)
+                        elif ch_type == "voice":
+                            await guild.create_voice_channel(ch_name, category=category, overwrites=overwrites)
+                        print(f"تم إنشاء الروم: {ch_name}")
+                    except Exception as e:
+                        print(f"فشل إنشاء الروم {ch_name}: {e}")
 
 class RejectModal(discord.ui.Modal, title='سبب الرفض'):
     reason = discord.ui.TextInput(label='السبب', style=discord.TextStyle.paragraph)
@@ -110,7 +144,7 @@ class AdminControlView(discord.ui.View):
         self.original_message = original_message
         
     def check_admin(self, interaction: discord.Interaction):
-        if any(role.name in ADMIN_ROLES for role in interaction.user.roles) or interaction.user.guild_permissions.administrator:
+        if interaction.user.guild_permissions.administrator:
             return True
         return False
 
@@ -306,7 +340,7 @@ class AdminEditModal(discord.ui.Modal, title='تعديل بيانات الشخص
         await interaction.response.send_message(f"✅ تم تحديث بيانات الشخصية ذات الهوية (`{self.identity_id}`) بنجاح!", ephemeral=True)
 
 @bot.command(name="deletechar")
-@commands.has_any_role(*ADMIN_ROLES)
+@commands.has_permissions(administrator=True)
 async def deletechar_cmd(ctx, member: discord.Member):
     c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (member.id,))
     chars = c.fetchall()
@@ -316,7 +350,7 @@ async def deletechar_cmd(ctx, member: discord.Member):
         await ctx.send("❌ هذا العضو ليس لديه أي شخصيات مسجلة.")
 
 @bot.command(name="editchar")
-@commands.has_any_role(*ADMIN_ROLES)
+@commands.has_permissions(administrator=True)
 async def editchar_cmd(ctx, member: discord.Member):
     c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (member.id,))
     chars = c.fetchall()
@@ -325,13 +359,8 @@ async def editchar_cmd(ctx, member: discord.Member):
     else:
         await ctx.send("❌ هذا العضو ليس لديه أي شخصيات مسجلة.")
 
-@bot.command(name="forgeid")
-@commands.has_any_role(FORGER_ROLE_NAME)
-async def forgeid_cmd(ctx):
-    await ctx.send(f"🎭 أهلاً بك يا مزور الهويات ({ctx.author.mention}). تم تفعيل وضع التزوير بنجاح.")
-
 @bot.command(name="امسح")
-@commands.has_any_role(*ADMIN_ROLES)
+@commands.has_permissions(administrator=True)
 async def clear_messages(ctx, amount: int = 10):
     await ctx.channel.purge(limit=amount + 1)
     msg = await ctx.send(f"🧹 تم حذف {amount} رسالة بنجاح.")
