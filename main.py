@@ -34,9 +34,8 @@ TARGET_VERIFY_CHANNEL_ID = 1530770263598301225
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
-    print("البوت يعمل بنجاح، ونظام الرتب والصلاحيات وأيدي سوني مفعل تماماً!")
+    print("البوت يعمل بنجاح، رومات الـ RP أصبحت مشاهدة فقط بعد إنشاء الشخصية!")
 
-# عند دخول عضو جديد: منحه رتبة Unverified و Inactive وتوجيهه لقسم الروان والقوانين فقط
 @bot.event
 async def on_member_join(member):
     guild = member.guild
@@ -51,7 +50,6 @@ async def on_member_join(member):
     except Exception as e:
         print(f"خطأ عند دخول العضو: {e}")
 
-# التفعيل التلقائي في روم الأيدي المخصص
 @bot.event
 async def on_message(message):
     if message.author.bot:
@@ -77,7 +75,6 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# دالة للتحقق من صحة أيدي سوني (PSN ID Rules)
 def is_valid_psn_id(psn_id):
     pattern = r'^[a-zA-Z][a-zA-Z0-9_-]{2,15}$'
     return bool(re.match(pattern, psn_id))
@@ -94,7 +91,6 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
         member = interaction.user
         entered_psn = self.psn_id.value.strip()
 
-        # 1. التحقق من صحة أيدي سوني
         if not is_valid_psn_id(entered_psn):
             await interaction.response.send_message(
                 "❌ **أيدي سوني (PSN ID) غير صحيح!**\n"
@@ -118,19 +114,16 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
 
         character_name = entered_psn
 
-        # 2. حفظ البيانات في قاعدة البيانات
         c.execute("INSERT INTO players (discord_id, identity_id, psn_id, birthdate, birthplace, bio, balance, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
                   (user_id, new_identity, entered_psn, self.birthdate.value, self.birthplace.value, self.bio.value, 1000, 'active'))
         conn.commit()
         
         try:
-            # 3. تغيير اسم العضو في السيرفر (Nickname) لأيدي سوني
             try:
                 await member.edit(nick=character_name)
             except Exception as nick_err:
-                print(f"ملاحظة: لم يتمكن البوت من تغيير النيك نيم (تأكد أن رتبة البوت أعلى من العضو وليست أعلى من المالك): {nick_err}")
+                print(f"ملاحظة: لم يتمكن البوت من تغيير النيك نيم: {nick_err}")
 
-            # 4. إدارة الرتب (إزالة Inactive، إضافة Identity والرتبة الزرقاء الشخصية)
             inactive_role = discord.utils.get(guild.roles, name="Inactive")
             identity_role = discord.utils.get(guild.roles, name="Identity")
             
@@ -140,7 +133,6 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             if identity_role and identity_role not in member.roles:
                 await member.add_roles(identity_role)
 
-            # إنشاء رتبة الهوية الخاصة باسم العضو (بدون بادئة GD |)
             blue_role = await guild.create_role(name=character_name, color=discord.Color.blue(), reason="رتبة هوية اللاعب برابط سوني")
             await member.add_roles(blue_role)
             
@@ -151,13 +143,24 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             if unverified_role and unverified_role in member.roles:
                 await member.remove_roles(unverified_role)
 
-            # 5. فتح صلاحيات رومات وأقسام الـ RP تلقائياً لرتبة Identity أو رتبة الهوية الجديدة
+            # ضبط الصلاحيات: مشاهدة فقط (Read Only) لأقسام الـ RP بعد إنشاء الشخصية
             game_categories_names = ["gt | phone", "gt | command", "gt | on display", "gt | theft", "collection", "gt | justice team", "gold town public", "social"]
             for cat in guild.categories:
-                if any(name in cat.name.lower() for name in game_categories_names):
+                cat_name_lower = cat.name.lower()
+                
+                # أقسم الأقيام أو الإدارة تمنع الكتابة تماماً
+                if any(admin_word in cat_name_lower for admin_word in ["admin", "staff", "الإدارة", "الادارة", "أقيام", "اقيام", "games"]):
+                    await cat.set_permissions(guild.default_role, send_messages=False)
                     if identity_role:
-                        await cat.set_permissions(identity_role, read_messages=True, send_messages=True)
-                    await cat.set_permissions(blue_role, read_messages=True, send_messages=True)
+                        await cat.set_permissions(identity_role, send_messages=False)
+                
+                # أقسام الـ RP تصبح مشاهدة فقط (يستطيع رؤيتها ولا يستطيع الكتابة فيها)
+                elif any(name in cat_name_lower for name in game_categories_names):
+                    if inactive_role:
+                        await cat.set_permissions(inactive_role, read_messages=False, send_messages=False)
+                    if identity_role:
+                        await cat.set_permissions(identity_role, read_messages=True, send_messages=False)
+                    await cat.set_permissions(blue_role, read_messages=True, send_messages=False)
 
         except Exception as e:
             print(f"خطأ في إعدادات الرتب والصلاحيات: {e}")
@@ -172,7 +175,7 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
                 f"📅 **المواليد:** {self.birthdate.value}"
             )
             
-        await interaction.response.send_message(f"✅ تم إنشاء شخصيتك بنجاح! تم تغيير اسمك إلى **{character_name}** ومنحك صلاحيات أقسام الـ RP.", ephemeral=True)
+        await interaction.response.send_message(f"✅ تم إنشاء شخصيتك بنجاح! تم تغيير اسمك إلى **{character_name}** وإتاحة مشاهدة رومات الـ RP (للقراءة فقط).", ephemeral=True)
 
 class CharacterSelect(discord.ui.Select):
     def __init__(self):
