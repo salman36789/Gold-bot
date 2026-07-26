@@ -158,6 +158,11 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
 
         is_valid, message_result = validate_character_data(f_name, l_name, entered_birth, entered_place)
         if not is_valid:
+            # إرسال سبب الرفض في الخاص (DM)
+            try:
+                await member.send(f"❌ **عذراً، تم رفض طلب إنشاء شخصيتك.**\n**السبب:** {message_result}")
+            except Exception:
+                pass
             await interaction.response.send_message(message_result, ephemeral=True)
             return
         
@@ -165,7 +170,12 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
         count = c.fetchone()[0]
         
         if count >= 3:
-            await interaction.response.send_message("❌ عذراً، لا يمكنك امتلاك أكثر من 3 شخصيات نشطة!", ephemeral=True)
+            error_msg = "❌ عذراً، لا يمكنك امتلاك أكثر من 3 شخصيات نشطة!"
+            try:
+                await member.send(f"❌ **عذراً، تم رفض طلب إنشاء شخصيتك.**\n**السبب:** {error_msg}")
+            except Exception:
+                pass
+            await interaction.response.send_message(error_msg, ephemeral=True)
             return
 
         while True:
@@ -210,6 +220,19 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
         except Exception as e:
             print(f"Error in roles/permissions: {e}")
 
+        # إرسال رسالة القبول والهوية في الخاص (DM) لصاحب الشخصية
+        try:
+            await member.send(
+                f"🎉 **مبروك! تم قبول شخصيتك بنجاح.**\n"
+                f"👤 **اسم الشخصية:** `{role_character_name}`\n"
+                f"🆔 **رقم الهوية:** `{new_identity}`\n"
+                f"🧠 **فكر الشخصية:** `{entered_mind}`\n"
+                f"📅 **المواليد:** `{entered_birth}`\n"
+                f"📍 **مكان الولادة:** `{entered_place}`"
+            )
+        except Exception:
+            pass
+
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
             await log_channel.send(
@@ -221,7 +244,7 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
                 f"📍 **مكان الولادة:** `{entered_place}`"
             )
             
-        await interaction.response.send_message(f"✅ مبروك! اجتازت شخصيتك كافة الشروط وتم **قبولها تلقائياً** وإنشاء رتبة باسم: `{role_character_name}`.", ephemeral=True)
+        await interaction.response.send_message(f"✅ مبروك! اجتازت شخصيتك كافة الشروط وتم **قبولها تلقائياً** وإرسال تفاصيل الهوية إلى رسائلك الخاصة (DM).", ephemeral=True)
 
 class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
     first_name = discord.ui.TextInput(label='الاسم الأول الجديد (إنجليزي)', placeholder='مثال: John...')
@@ -246,6 +269,10 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
 
         is_valid, message_result = validate_character_data(f_name, l_name, entered_birth, entered_place)
         if not is_valid:
+            try:
+                await member.send(f"❌ **عذراً، فشلت عملية تزوير الهوية.**\n**السبب:** {message_result}")
+            except Exception:
+                pass
             await interaction.response.send_message(message_result, ephemeral=True)
             return
 
@@ -272,6 +299,11 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
 
         except Exception as e:
             print(f"Error in forge role edit: {e}")
+
+        try:
+            await member.send(f"⚠️ **تم تزوير وتحديث هويتك بنجاح!**\n🆔 رقم الهوية: `{self.identity_id}`\n👤 الاسم الجديد: `{new_full_name}`")
+        except Exception:
+            pass
 
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
@@ -432,9 +464,15 @@ async def character_command(ctx):
 
 @bot.command(name="forge")
 async def forge_command(ctx):
-    embed_forge = discord.Embed(title="Forgery System", description="اضغط على الزر أدناه لتزوير هوية شخصيتك:", color=discord.Color.dark_red())
-    embed_forge.set_image(url=IMAGE_URL)
-    await ctx.send(embed=embed_forge, view=ForgeButtonView())
+    user_id = ctx.author.id
+    c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (user_id,))
+    players = c.fetchall()
+    if players:
+        embed_forge = discord.Embed(title="Forgery System", description="اختر الشخصية التي تريد تزويرها من القائمة أدناه:", color=discord.Color.dark_red())
+        embed_forge.set_image(url=IMAGE_URL)
+        await ctx.send(embed=embed_forge, view=ForgeSelectView(players))
+    else:
+        await ctx.send("❌ ليس لديك أي شخصيات مسجلة لتزويرها!", delete_after=5)
 
 @bot.command(name="امسح")
 async def clear_messages(ctx, amount: int = 10):
@@ -449,4 +487,4 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
-
+ 
