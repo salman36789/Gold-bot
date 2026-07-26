@@ -37,7 +37,7 @@ last_build_time = 0
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
-    print("البوت جاهز مع الرتب الإدارية المنظمة والصلاحيات الكاملة!")
+    print("البوت جاهز مع الرتب الإنجليزية للأعضاء والإدارية المنظمة!")
 
 # إعطاء رتبة Unverified تلقائياً عند دخول أي عضو جديد
 @bot.event
@@ -66,12 +66,12 @@ async def build_server(ctx):
     is_building = True
     last_build_time = current_time
     
-    await ctx.send("🔄 جاري فرمتة السيرفر، ضبط الرتب الإدارية (أصفر/أحمر/أخضر)، وبناء الأقسام...")
+    await ctx.send("🔄 جاري فرمتة السيرفر، ضبط الرتب الإنجليزية (Verified / Unverified)، وبناء الأقسام...")
     
     try:
         guild = ctx.guild
         
-        # 1. الرتب الأساسية للأعضاء
+        # 1. الرتب الأساسية للأعضاء بالإنجليزي
         verified_role = discord.utils.get(guild.roles, name="Verified")
         if not verified_role:
             verified_role = await guild.create_role(name="Verified", color=discord.Color.green(), reason="Verified members role")
@@ -84,7 +84,7 @@ async def build_server(ctx):
         else:
             await unverified_role.edit(color=discord.Color.red())
 
-        # 2. الرتب الإدارية المرتبة بألوان ذهبية وصفراء مميزة
+        # 2. الرتب الإدارية المرتبة
         admin_roles_data = [
             ("👑 ┃ Owner", discord.Color.gold(), discord.Permissions(administrator=True)),
             ("🛡️ ┃ High Admin", discord.Color.orange(), discord.Permissions(manage_guild=True, manage_roles=True, ban_members=True, kick_members=True)),
@@ -99,7 +99,7 @@ async def build_server(ctx):
             else:
                 await r.edit(color=r_color, permissions=r_perms)
 
-        # 3. حذف كافة الرومات والأقسام القديمة لإعادة البناء النظيف
+        # 3. حذف كافة الرومات والأقسام القديمة
         for channel in list(guild.channels):
             try:
                 await channel.delete()
@@ -229,7 +229,7 @@ async def build_server(ctx):
                 except:
                     pass
 
-        print("✅ تم بناء السيرفر والرتب الإدارية بنجاح كامل!")
+        print("✅ تم بناء السيرفر بنجاح كامل!")
     
     finally:
         is_building = False
@@ -372,4 +372,4 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
- 
+
