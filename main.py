@@ -33,9 +33,22 @@ LOG_CHANNEL_ID = 1530708101077012653
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
-        print(f"جاري فحص وتأسيس رومات Gold Town في سيرفر: {guild.name}")
+        print(f"جاري حذف الرومات القديمة بالكامل وإعادة بناء Gold Town في سيرفر: {guild.name}")
         
-        # هيكل الأقسام والرومات (بدون أقفل وبدون تكرار)
+        # 1. حذف جميع الرومات والأقسام الموجودة في السيرفر حالياً
+        for channel in guild.channels:
+            try:
+                await channel.delete()
+            except Exception as e:
+                print(f"فشل حذف الروم {channel.name}: {e}")
+                
+        for category in guild.categories:
+            try:
+                await category.delete()
+            except Exception as e:
+                print(f"فشل حذف القسم {category.name}: {e}")
+
+        # 2. هيكل الأقسام والرومات الجديدة (بدون أي أقفال وبدون تكرار)
         structure = {
             "Gold Town | Rules": [
                 ("🟥 ┃ rules", False),
@@ -77,28 +90,24 @@ async def on_ready():
             ]
         }
 
-        # إنشاء الأقسام والرومات فقط إذا لم تكن موجودة لمنع التكرار
+        # 3. إنشاء الأقسام والرومات الجديدة من الصفر
         for category_name, channels in structure.items():
-            category = discord.utils.get(guild.categories, name=category_name)
-            if not category:
-                try:
-                    category = await guild.create_category(category_name)
-                    print(f"تم إنشاء القسم: {category_name}")
-                except Exception as e:
-                    print(f"فشل إنشاء القسم {category_name}: {e}")
-                    continue
+            try:
+                category = await guild.create_category(category_name)
+                print(f"تم إنشاء القسم: {category_name}")
+            except Exception as e:
+                print(f"فشل إنشاء القسم {category_name}: {e}")
+                continue
 
             for ch_name, is_private in channels:
-                existing_ch = discord.utils.get(guild.channels, name=ch_name)
-                if not existing_ch:
-                    try:
-                        overwrites = {
-                            guild.default_role: discord.PermissionOverwrite(read_messages=not is_private)
-                        }
-                        await guild.create_text_channel(ch_name, category=category, overwrites=overwrites)
-                        print(f"تم إنشاء الروم النصي: {ch_name}")
-                    except Exception as e:
-                        print(f"فشل إنشاء الروم {ch_name}: {e}")
+                try:
+                    overwrites = {
+                        guild.default_role: discord.PermissionOverwrite(read_messages=not is_private)
+                    }
+                    await guild.create_text_channel(ch_name, category=category, overwrites=overwrites)
+                    print(f"تم إنشاء الروم النصي: {ch_name}")
+                except Exception as e:
+                    print(f"فشل إنشاء الروم {ch_name}: {e}")
 
 class RejectModal(discord.ui.Modal, title='سبب الرفض'):
     reason = discord.ui.TextInput(label='السبب', style=discord.TextStyle.paragraph)
