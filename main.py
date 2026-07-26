@@ -36,6 +36,9 @@ c.execute('''CREATE TABLE IF NOT EXISTS trips (
 
 conn.commit()
 
+# متغير عالمي لتتبع حالة الرحلة
+current_trip_status = False
+
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
@@ -370,6 +373,11 @@ class LoginSelect(discord.ui.Select):
         self.players_dict = {str(p[0]): f"{p[1]} {p[2]}" for p in players}
 
     async def callback(self, interaction: discord.Interaction):
+        global current_trip_status
+        if not current_trip_status:
+            await interaction.response.send_message("❌ مافي رحلة الآن! لا يمكنك تسجيل الدخول للشخصية حتى تبدأ الرحلة.", ephemeral=True)
+            return
+
         selected_identity = self.values[0]
         char_name = self.players_dict.get(selected_identity)
         member = interaction.user
@@ -431,6 +439,11 @@ class CharacterSelect(discord.ui.Select):
         await interaction.response.defer(ephemeral=True)
 
         if self.values[0] == "Login":
+            global current_trip_status
+            if not current_trip_status:
+                await interaction.followup.send("❌ مافي رحلة الآن! لا يمكنك تسجيل الدخول للشخصية حتى تبدأ الرحلة.", ephemeral=True)
+                return
+
             c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (user_id,))
             players = c.fetchall()
             if players:
@@ -459,9 +472,35 @@ class CharacterView(discord.ui.View):
     def __init__(self, timeout=None):
         super().__init__(timeout=timeout)
 
+class TripSelect(discord.ui.Select):
+    def __init__(self):
+        options = [
+            discord.SelectOption(label="بدء الرحلة", description="تفعيل وبدء الرحلة الحالية", emoji="🟢", value="start"),
+            discord.SelectOption(label="إعصار", description="تفعيل حالة إعصار للرحلة", emoji="⚠️", value="tornado"),
+            discord.SelectOption(label="تجديد", description="تجديد الرحلة الحالية", emoji="🔄", value="renew")
+        ]
+        super().__init__(placeholder="اختر إجراء الرحلة من القائمة...", options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        if not has_trip_permission(interaction.user):
+            await interaction.response.send_message("ليس لديك الصلاحية لاستخدام هذه القائمة.", ephemeral=True)
+            return
+
+        global current_trip_status
+        choice = self.values[0]
+
+        if choice == "start":
+            current_trip_status = True
+            await interaction.response.send_message("🟡 تم بدء الرحلة بنجاح! متاح الآن للجميع تسجيل الدخول بشخصياتهم.", ephemeral=False)
+        elif choice == "tornado":
+            await interaction.response.send_message("⚠️ تنبيه: حالة إعصار للرحلة!", ephemeral=False)
+        elif choice == "renew":
+            await interaction.response.send_message("🔄 تم تجديد الرحلة بنجاح.", ephemeral=False)
+
 class TripControlView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
+        self.add_item(TripSelect())
 
     @discord.ui.button(label="بدء رحلة", style=discord.ButtonStyle.green, custom_id="start_trip_btn")
     async def start_trip(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -469,7 +508,10 @@ class TripControlView(discord.ui.View):
             await interaction.response.send_message("ليس لديك الصلاحية لاستخدام هذه الأزرار.", ephemeral=True)
             return
         
-        await interaction.response.send_message("🟡 تم بدء الرحلة بنجاح!", ephemeral=False)
+        global current_trip_status
+        current_trip_status = True
+        
+        await interaction.response.send_message("🟡 تم بدء الرحلة بنجاح! متاح الآن للجميع تسجيل الدخول بشخصياتهم.", ephemeral=False)
         message = await interaction.original_response()
         try:
             await message.add_reaction("🟡")
@@ -496,8 +538,16 @@ async def slash_trip(interaction: discord.Interaction):
         await interaction.response.send_message("عذراً، لا تمتلك رتبة `GT | Trip Support` أو صلاحية الأدمن لاستخدام هذا الأمر.", ephemeral=True)
         return
 
+    embed = discord.Embed(
+        title="✈️ لوحة تحكم إدارة الرحلات",
+        description="اختر الإجراء المناسب للرحلة إما عبر الأزرار أو القائمة المنسدلة في الأسفل:",
+        color=discord.Color.blue()
+    )
+    embed.set_image(url=IMAGE_URL)
+    embed.set_footer(text="© Gold Town System | 2026")
+
     view = TripControlView()
-    await interaction.response.send_message("✈️ **لوحة تحكم إدارة الرحلات:**\nاختر الإجراء المناسب من الأسفل:", view=view, ephemeral=False)
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=False)
 
 @bot.command(name="trip")
 async def trip_command(ctx):
@@ -510,8 +560,16 @@ async def trip_command(ctx):
     except Exception:
         pass
 
+    embed = discord.Embed(
+        title="✈️ لوحة تحكم إدارة الرحلات",
+        description="اختر الإجراء المناسب للرحلة إما عبر الأزرار أو القائمة المنسدلة في الأسفل:",
+        color=discord.Color.blue()
+    )
+    embed.set_image(url=IMAGE_URL)
+    embed.set_footer(text="© Gold Town System | 2026")
+
     view = TripControlView()
-    await ctx.send("✈️ **لوحة تحكم إدارة الرحلات:**\nاختر الإجراء المناسب من الأسفل:", view=view)
+    await ctx.send(embed=embed, view=view)
 
 @bot.command(name="character")
 async def character_command(ctx):
