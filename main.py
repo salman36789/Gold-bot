@@ -37,13 +37,13 @@ last_build_time = 0
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
-    print("البوت جاهز ومنظم بنظام الصلاحيات الخاص برتب الهويات!")
+    print("البوت جاهز مع الرتب الإدارية المنظمة والصلاحيات الكاملة!")
 
-# إعطاء رتبة غير المتفعلين تلقائياً عند دخول أي عضو جديد
+# إعطاء رتبة Unverified تلقائياً عند دخول أي عضو جديد
 @bot.event
 async def on_member_join(member):
     guild = member.guild
-    unverified_role = discord.utils.get(guild.roles, name="الغير متفعلين")
+    unverified_role = discord.utils.get(guild.roles, name="Unverified")
     if unverified_role:
         try:
             await member.add_roles(unverified_role)
@@ -51,8 +51,12 @@ async def on_member_join(member):
             pass
 
 @bot.command(name="build")
-@commands.has_permissions(administrator=True)
 async def build_server(ctx):
+    # حماية أمر البناء لمالك السيرفر فقط
+    if ctx.author != ctx.guild.owner:
+        await ctx.send("❌ عذراً، هذا الأمر مخصص لمالك السيرفر (Owner) فقط!", delete_after=5)
+        return
+
     global is_building, last_build_time
     current_time = time.time()
     
@@ -62,25 +66,40 @@ async def build_server(ctx):
     is_building = True
     last_build_time = current_time
     
-    await ctx.send("🔄 جاري فرمتة السيرفر، ضبط الرتب (أخضر وأحمر)، وبناء الأقسام وصلاحيات الهويات...")
+    await ctx.send("🔄 جاري فرمتة السيرفر، ضبط الرتب الإدارية (أصفر/أحمر/أخضر)، وبناء الأقسام...")
     
     try:
         guild = ctx.guild
         
-        # 1. إنشاء أو تحديث الرتب الأساسية بالألوان المطلوبة
-        verified_role = discord.utils.get(guild.roles, name="المتفعلين")
+        # 1. الرتب الأساسية للأعضاء
+        verified_role = discord.utils.get(guild.roles, name="Verified")
         if not verified_role:
-            verified_role = await guild.create_role(name="المتفعلين", color=discord.Color.green(), reason="رتبة الأعضاء المتفعلين")
+            verified_role = await guild.create_role(name="Verified", color=discord.Color.green(), reason="Verified members role")
         else:
             await verified_role.edit(color=discord.Color.green())
             
-        unverified_role = discord.utils.get(guild.roles, name="الغير متفعلين")
+        unverified_role = discord.utils.get(guild.roles, name="Unverified")
         if not unverified_role:
-            unverified_role = await guild.create_role(name="الغير متفعلين", color=discord.Color.red(), reason="رتبة الأعضاء غير المتفعلين")
+            unverified_role = await guild.create_role(name="Unverified", color=discord.Color.red(), reason="Unverified members role")
         else:
             await unverified_role.edit(color=discord.Color.red())
 
-        # 2. حذف كافة الرومات القديمة
+        # 2. الرتب الإدارية المرتبة بألوان ذهبية وصفراء مميزة
+        admin_roles_data = [
+            ("👑 ┃ Owner", discord.Color.gold(), discord.Permissions(administrator=True)),
+            ("🛡️ ┃ High Admin", discord.Color.orange(), discord.Permissions(manage_guild=True, manage_roles=True, ban_members=True, kick_members=True)),
+            ("⚡ ┃ Admin", discord.Color.yellow(), discord.Permissions(manage_messages=True, kick_members=True)),
+            ("🔨 ┃ Moderator", discord.Color.light_embed(), discord.Permissions(manage_messages=True))
+        ]
+        
+        for r_name, r_color, r_perms in admin_roles_data:
+            r = discord.utils.get(guild.roles, name=r_name)
+            if not r:
+                await guild.create_role(name=r_name, color=r_color, permissions=r_perms, reason="Administrative role")
+            else:
+                await r.edit(color=r_color, permissions=r_perms)
+
+        # 3. حذف كافة الرومات والأقسام القديمة لإعادة البناء النظيف
         for channel in list(guild.channels):
             try:
                 await channel.delete()
@@ -88,7 +107,6 @@ async def build_server(ctx):
             except:
                 pass
                 
-        # 3. حذف كافة الأقسام القديمة
         for category in list(guild.categories):
             try:
                 await category.delete()
@@ -98,7 +116,6 @@ async def build_server(ctx):
 
         await asyncio.sleep(1)
 
-        # 4. الهيكل الكامل للسيرفر
         structure = {
             "Gold Town | Rules": [
                 ("🟥 ┃ rules", "text"),
@@ -177,13 +194,10 @@ async def build_server(ctx):
             ]
         }
 
-        # دالة للبحث عن رتب الهويات المتاحة في السيرفر وقت البناء
         identity_roles = [role for role in guild.roles if role.name.startswith("GD |")]
 
-        # 5. بناء الأقسام وتطبيق الصلاحيات بدقة بناءً على طلبك
         for category_name, channels in structure.items():
             try:
-                # الأقسام التي تظهر للجميع أو غير المتفعلين
                 if category_name in ["Gold Town | Rules", "Gold Town | Ads", "Gold Town Identity", "Gold Town | General"]:
                     overwrites = {
                         guild.default_role: discord.PermissionOverwrite(read_messages=False),
@@ -192,12 +206,10 @@ async def build_server(ctx):
                     }
                     category = await guild.create_category(category_name, overwrites=overwrites)
                 else:
-                    # باقي الأقسام (التي تحت الكاركتر واللعبة) لا يراها إلا من لديه رتبة الهوية (GD |)
                     overwrites = {
                         guild.default_role: discord.PermissionOverwrite(read_messages=False),
                         verified_role: discord.PermissionOverwrite(read_messages=False)
                     }
-                    # السماح لكل رتبة هوية موجودة برؤية هذه الأقسام
                     for i_role in identity_roles:
                         overwrites[i_role] = discord.PermissionOverwrite(read_messages=True)
 
@@ -217,12 +229,11 @@ async def build_server(ctx):
                 except:
                     pass
 
-        print("✅ تم بناء السيرفر وتخصيص صلاحيات رتب الهويات بنجاح كامل!")
+        print("✅ تم بناء السيرفر والرتب الإدارية بنجاح كامل!")
     
     finally:
         is_building = False
 
-# نظام التفعيل التلقائي عند كتابة الـ ID في روم enter-id
 @bot.event
 async def on_message(message):
     if message.author.bot:
@@ -234,8 +245,8 @@ async def on_message(message):
             guild = message.guild
             member = message.author
             
-            verified_role = discord.utils.get(guild.roles, name="المتفعلين")
-            unverified_role = discord.utils.get(guild.roles, name="الغير متفعلين")
+            verified_role = discord.utils.get(guild.roles, name="Verified")
+            unverified_role = discord.utils.get(guild.roles, name="Unverified")
             
             if verified_role and verified_role not in member.roles:
                 await member.add_roles(verified_role)
@@ -248,7 +259,6 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# نافذة تسجيل الشخصية وتوليد رتبة GD | باللون الأزرق، ومنحها صلاحية رؤية أقسام اللعبة تلقائياً
 class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديدة'):
     first_name = discord.ui.TextInput(label='الاسم الأول (بالإنجليزي)', placeholder='First Name...', min_length=2)
     last_name = discord.ui.TextInput(label='الاسم الثاني (بالإنجليزي)', placeholder='Last Name...', min_length=2)
@@ -284,14 +294,13 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             member = interaction.user
             await member.add_roles(blue_role)
             
-            verified_role = discord.utils.get(guild.roles, name="المتفعلين")
-            unverified_role = discord.utils.get(guild.roles, name="الغير متفعلين")
+            verified_role = discord.utils.get(guild.roles, name="Verified")
+            unverified_role = discord.utils.get(guild.roles, name="Unverified")
             if verified_role:
                 await member.add_roles(verified_role)
             if unverified_role and unverified_role in member.roles:
                 await member.remove_roles(unverified_role)
 
-            # تحديث صلاحيات الأقسام التحتية (أقسام اللعبة) لتشمل هذه الرتبة الجديدة تلقائياً
             game_categories = [
                 "GT | Phone", "GT | Command", "GT | On display", 
                 "GT | Theft", "Collection", "GT | Justice Team"
@@ -313,7 +322,7 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
                 f"📅 **المواليد:** {self.birthdate.value}"
             )
             
-        await interaction.response.send_message(f"✅ تم إنشاء شخصيتك بنجاح! رقم هويتك: **{new_identity}** وتم منحك رتبة الهوية الزرقاء وفتح أقسام اللعبة لك تلقائياً.", ephemeral=True)
+        await interaction.response.send_message(f"✅ تم إنشاء شخصيتك بنجاح! رقم هويتك: **{new_identity}** وتم منحك رتبة الهوية الزرقاء وتفعيلك بنجاح.", ephemeral=True)
 
 class CharacterSelect(discord.ui.Select):
     def __init__(self):
@@ -351,8 +360,9 @@ async def character_command(ctx):
     await ctx.send(embed=embed, view=CharacterView())
 
 @bot.command(name="امسح")
-@commands.has_permissions(administrator=True)
 async def clear_messages(ctx, amount: int = 10):
+    if ctx.author != ctx.guild.owner and not ctx.author.guild_permissions.administrator:
+        return
     await ctx.channel.purge(limit=amount + 1)
     msg = await ctx.send(f"🧹 تم حذف {amount} رسالة بنجاح.")
     await asyncio.sleep(3)
