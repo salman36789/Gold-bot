@@ -27,7 +27,7 @@ intents.message_content = True
 intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-LOG_CHANNEL_ID = 1530708101077012653  # ضع آيدي روم اللوق الخاص بك هنا
+LOG_CHANNEL_ID = 1530708101077012653
 
 @bot.event
 async def on_ready():
@@ -35,70 +35,70 @@ async def on_ready():
     for guild in bot.guilds:
         print(f"جاري فحص وتأسيس رومات سيرفر: {guild.name}")
         
-        # هيكل الأقسام والرومات المطابق للصور
+        # هيكل الأقسام والرومات مع الإيموجيز والرموز المطابقة للصور تماماً
         structure = {
             "North Side | Rules .": [
-                ("PROVE • YOUR • SELF", "text", True),
-                ("Rules", "text", True),
-                ("New • Rules", "voice", True),
-                ("Pinned", "voice", True)
+                ("🔒 ┃ PROVE • YOUR • SELF", "text", True),
+                ("🟥 ┃ Rules", "text", True),
+                ("🟥 ┃ New • Rules", "voice", True),
+                ("🔗 ┃ Pinned", "voice", True)
             ],
             "North Side | Ads .": [
-                ("Announcement", "text", True),
-                ("Update", "voice", True),
-                ("Merge", "voice", True),
-                ("Hints", "voice", True),
-                ("Boosters", "voice", True),
-                ("Partner", "voice", True),
-                ("Shame", "voice", True)
+                ("📢 ┃ Announcement", "text", True),
+                ("👷 ┃ Update", "voice", True),
+                ("📄 ┃ Merge", "voice", True),
+                ("🔍 ┃ Hints", "voice", True),
+                ("🔮 ┃ Boosters", "voice", True),
+                ("🔗 ┃ Partner", "voice", True),
+                ("🔴 ┃ Shame", "voice", True)
             ],
             "NS | Rooms .": [
-                ("Discord.gg/ns5", "text", True),
-                ("NSRP System .2", "voice", True),
-                ("Owner", "text", True),
-                ("Founders", "text", True),
-                ("High Command", "text", True),
-                ("Management", "text", True),
-                ("Programmer", "text", True),
-                ("Respect", "text", True),
-                ("Meeting", "text", True),
-                ("NS | مجلس • نورت .", "voice", True)
+                ("🔒 ┃ Discord.gg/ns5", "text", True),
+                ("👤 ┃ NSRP System .2", "voice", True),
+                ("🔒 ┃ Owner", "text", True),
+                ("🔒 ┃ Founders", "text", True),
+                ("🔒 ┃ High Command", "text", True),
+                ("🔒 ┃ Management", "text", True),
+                ("🔒 ┃ Programmer", "text", True),
+                ("🔒 ┃ Respect", "text", True),
+                ("🔒 ┃ Meeting", "text", True),
+                ("🔊 ┃ NS | مجلس • نورت .", "voice", True)
             ],
             "NS | Support .": [
-                ("Tickets", "text", True),
-                ("Support 1", "voice", True),
-                ("Waiting support .", "voice", True)
+                ("📧 ┃ Tickets", "text", True),
+                ("❗ ┃ Support 1", "voice", True),
+                ("🔊 ┃ Waiting support .", "voice", True)
             ],
             "NS | Sumbit Staff": [
-                ("Ads", "text", True),
-                ("Sumbit • Mangement", "text", True),
-                ("Waiting", "voice", True)
+                ("📢 ┃ Ads", "text", True),
+                ("🖥️ ┃ Sumbit • Mangement", "text", True),
+                ("⏱️ ┃ Waiting", "voice", True)
             ],
             "North Side Public .": [
-                ("General • chat", "text", True),
-                ("Credit", "text", True),
-                ("Athkar", "text", True),
-                ("Suggestions", "text", True),
-                ("Events", "text", True),
-                ("Server", "text", True)
+                ("💬 ┃ General • chat", "text", True),
+                ("💸 ┃ Credit", "text", True),
+                ("📿 ┃ Athkar", "text", True),
+                ("💭 ┃ Suggestions", "text", True),
+                ("🎡 ┃ Events", "text", True),
+                ("🔗 ┃ Server", "text", True)
             ],
             "Social": [
-                ("TikTok", "text", True),
-                ("Live-Now", "text", True)
+                ("🎥 ┃ TikTok", "text", True),
+                ("📺 ┃ Live-Now", "text", True)
             ],
             "North Side iDenitity .": [
-                ("Character • Rules", "text", True),
-                ("Create • Character", "text", True)
+                ("📇 ┃ Character • Rules", "text", True),
+                ("📇 ┃ Create • Character", "text", True)
             ]
         }
 
-        # إنشاء الأقسام والرومات إذا لم تكن موجودة مسبقاً
+        # إنشاء الأقسام والرومات إذا لم تكن موجودة
         for category_name, channels in structure.items():
             category = discord.utils.get(guild.categories, name=category_name)
             if not category:
                 try:
                     category = await guild.create_category(category_name)
-                    print(تم إنشاء القسم: {category_name})
+                    print(f"تم إنشاء القسم: {category_name}")
                 except Exception as e:
                     print(f"فشل إنشاء القسم {category_name}: {e}")
                     continue
