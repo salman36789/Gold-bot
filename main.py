@@ -12,7 +12,6 @@ DB_FILE = 'bot_database.db'
 conn = sqlite3.connect(DB_FILE, check_same_thread=False)
 c = conn.cursor()
 
-# إضافة حقل الجنس (gender) إلى جدول قاعدة البيانات
 c.execute('''CREATE TABLE IF NOT EXISTS players (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, 
                 discord_id INTEGER, 
@@ -189,7 +188,6 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
 
         role_character_name = f"{f_name} {l_name}"
 
-        # حفظ البيانات بما فيها الجنس مكان الولادة الجديد
         c.execute("INSERT INTO players (discord_id, identity_id, first_name, last_name, birthdate, gender, birthplace, bio, balance, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
                   (user_id, new_identity, f_name, l_name, entered_birth, entered_gender, entered_place, "مقبول تلقائياً", 1000, 'active'))
         conn.commit()
@@ -209,8 +207,10 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             if identity_role and identity_role not in member.roles:
                 await member.add_roles(identity_role)
 
-            blue_role = await guild.create_role(name=role_character_name, color=discord.Color.blue(), reason="رتبة اسم الشخصية")
-            await member.add_roles(blue_role)
+            character_role = discord.utils.get(guild.roles, name=role_character_name)
+            if not character_role:
+                character_role = await guild.create_role(name=role_character_name, color=discord.Color.blue(), reason="رتبة اسم الشخصية")
+            await member.add_roles(character_role)
             
             verified_role = discord.utils.get(guild.roles, name="Verified")
             unverified_role = discord.utils.get(guild.roles, name="Unverified")
@@ -224,12 +224,14 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
         except Exception as e:
             print(f"Error in roles/permissions: {e}")
 
-        # إرسال رسالة القبول والهوية في الخاص (DM) مع الجنس
         try:
             await member.send(
                 f"🎉 **مبروك! تم قبول شخصيتك بنجاح.**\n"
                 f"👤 **First Name |** `{f_name}`\n"
-                f"👤 **Last Name |** `{l_name}`\n"
+                f"👤 **Last Name |** `{l_name}`"
+            )
+            await member.send(
+                f"📋 **تفاصيل الهوية الإضافية:**\n"
                 f"📅 **Birthday |** `{entered_birth}`\n"
                 f"⚧️ **Gender |** `{entered_gender}`\n"
                 f"📍 **Birth Place |** `{entered_place}`\n"
@@ -435,7 +437,6 @@ class CharacterSelect(discord.ui.Select):
             else:
                 await interaction.response.send_message("❌ ليس لديك شخصيات مسجلة!", ephemeral=True)
         elif self.values[0] == "Show identity":
-            # عرض الهويات مع الجنس
             c.execute("SELECT identity_id, first_name, last_name, birthdate, gender, birthplace, balance FROM players WHERE discord_id = ?", (user_id,))
             players = c.fetchall()
             if players:
@@ -453,6 +454,11 @@ class CharacterView(discord.ui.View):
 
 @bot.command(name="character")
 async def character_command(ctx):
+    try:
+        await ctx.message.delete()
+    except Exception:
+        pass
+        
     embed = discord.Embed(title="Character Management", description="Character Creation, Login & Logout System", color=discord.Color.gold())
     embed.set_image(url=IMAGE_URL)
     await ctx.send(embed=embed, view=CharacterView())
