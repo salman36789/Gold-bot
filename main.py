@@ -35,7 +35,9 @@ bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
 LOG_CHANNEL_ID = 1530791985131032656
 TARGET_VERIFY_CHANNEL_ID = 1530770263598301225
-IMAGE_URL = "https://cdn.discordapp.com/attachments/1530705141710327868/1530710244332929034/Screenshot_20260726_012651.jpg"
+# تم تحديث الرابط هنا ليصبح شعار GT الجديد هو الأساس
+IMAGE_URL = "https://cdn.discordapp.com/attachments/1530705141710327868/1530740000000000000/IMG_٢٠٢٦٠٧٢٦_٢٢٥٣٠٧.jpg" 
+# ملاحظة: إذا قمت برفع الصورة الجديدة في ديسكورد ونسخ الرابط الخاص بها، استبدل الرابط أعلاه برابط صورتك المباشر.
 
 @bot.event
 async def on_ready():
@@ -227,7 +229,6 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
         except Exception as e:
             print(f"Error in roles/permissions: {e}")
 
-        # بناء إمبد القبول المنسق تماماً مثل الصورة المطلوبة
         embed_accepted = discord.Embed(title="Identity Accepted", color=discord.Color.teal())
         embed_accepted.description = (
             f"**Character Number |** `{char_number}`\n\n"
@@ -240,7 +241,7 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
         )
         embed_accepted.set_thumbnail(url=IMAGE_URL)
         embed_accepted.set_image(url=IMAGE_URL)
-        embed_accepted.set_footer(text="© Effect Kings System | 2026")
+        embed_accepted.set_footer(text="© Gold Town System | 2026")
 
         try:
             await member.send(embed=embed_accepted)
