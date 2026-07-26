@@ -33,7 +33,7 @@ LOG_CHANNEL_ID = 1530708101077012653
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
-        print(f"جاري مسح الرومات القديمة وتأسيس رومات Gold Town في سيرفر: {guild.name}")
+        print(f"جاري مسح الرومات القديمة وتأسيس رومات Gold Town النصية فقط في سيرفر: {guild.name}")
         
         # 1. حذف جميع الأقسام والرومات القديمة الموجودة في السيرفر أولاً
         for channel in guild.channels:
@@ -48,64 +48,56 @@ async def on_ready():
             except Exception as e:
                 print(f"فشل حذف القسم {category.name}: {e}")
 
-        # 2. هيكل الأقسام والرومات الجديدة بعد الاستبدال إلى Gold Town مع الإيموجيز
+        # 2. هيكل الأقسام والرومات الجديدة (نصية فقط بدون أي فويس وبدون تكرار)
         structure = {
-            "Gold Town | Rules .": [
-                ("🔒 ┃ PROVE • YOUR • SELF", "text", True),
-                ("🟥 ┃ Rules", "text", True),
-                ("🟥 ┃ New • Rules", "voice", True),
-                ("🔗 ┃ Pinned", "voice", True)
+            "Gold Town | Rules": [
+                ("🔒 ┃ prove-your-self", True),
+                ("🟥 ┃ rules", True),
+                ("📜 ┃ new-rules", False),
+                ("🔗 ┃ pinned", False)
             ],
-            "Gold Town | Ads .": [
-                ("📢 ┃ Announcement", "text", True),
-                ("👷 ┃ Update", "voice", True),
-                ("📄 ┃ Merge", "voice", True),
-                ("🔍 ┃ Hints", "voice", True),
-                ("🔮 ┃ Boosters", "voice", True),
-                ("🔗 ┃ Partner", "voice", True),
-                ("🔴 ┃ Shame", "voice", True)
+            "Gold Town | Ads": [
+                ("📢 ┃ announcement", False),
+                ("👷 ┃ updates", False),
+                ("📄 ┃ merges", False),
+                ("🔍 ┃ hints", False),
+                ("🔮 ┃ boosters", False),
+                ("🔗 ┃ partners", False)
             ],
-            "GT | Rooms .": [
-                ("🔒 ┃ Discord.gg/gold", "text", True),
-                ("👤 ┃ GT System .2", "voice", True),
-                ("🔒 ┃ Owner", "text", True),
-                ("🔒 ┃ Founders", "text", True),
-                ("🔒 ┃ High Command", "text", True),
-                ("🔒 ┃ Management", "text", True),
-                ("🔒 ┃ Programmer", "text", True),
-                ("🔒 ┃ Respect", "text", True),
-                ("🔒 ┃ Meeting", "text", True),
-                ("🔊 ┃ GT | مجلس • غولد .", "voice", True)
+            "GT | Rooms": [
+                ("🔒 ┃ discord-gold", True),
+                ("💬 ┃ general-chat", False),
+                ("🔒 ┃ owner-room", True),
+                ("🔒 ┃ founders-room", True),
+                ("🔒 ┃ high-command", True),
+                ("🔒 ┃ management-room", True),
+                ("🔒 ┃ programmers", True)
             ],
-            "GT | Support .": [
-                ("📧 ┃ Tickets", "text", True),
-                ("❗ ┃ Support 1", "voice", True),
-                ("🔊 ┃ Waiting support .", "voice", True)
+            "GT | Support": [
+                ("📧 ┃ tickets", False),
+                ("❗ ┃ support-chat", False)
             ],
-            "GT | Sumbit Staff": [
-                ("📢 ┃ Ads", "text", True),
-                ("🖥️ ┃ Sumbit • Mangement", "text", True),
-                ("⏱️ ┃ Waiting", "voice", True)
+            "GT | Submit Staff": [
+                ("📢 ┃ staff-ads", False),
+                ("🖥️ ┃ submit-management", False)
             ],
-            "Gold Town Public .": [
-                ("💬 ┃ General • chat", "text", True),
-                ("💸 ┃ Credit", "text", True),
-                ("📿 ┃ Athkar", "text", True),
-                ("💭 ┃ Suggestions", "text", True),
-                ("🎡 ┃ Events", "text", True),
-                ("🔗 ┃ Server", "text", True)
+            "Gold Town Public": [
+                ("💸 ┃ credits", False),
+                ("📿 ┃ athkar", False),
+                ("💭 ┃ suggestions", False),
+                ("🎡 ┃ events", False)
             ],
             "Social": [
-                ("🎥 ┃ TikTok", "text", True),
-                ("📺 ┃ Live-Now", "text", True)
+                ("🎥 ┃ tiktok", False),
+                ("📺 ┃ live-now", False)
             ],
-            "Gold Town iDenitity .": [
-                ("📇 ┃ Character • Rules", "text", True),
-                ("📇 ┃ Create • Character", "text", True)
+            "Gold Town Identity": [
+                ("📇 ┃ character-rules", False),
+                ("📇 ┃ create-character", False)
             ]
         }
 
-        # 3. إنشاء الأقسام والرومات الجديدة بالترتيب
+        # 3. إنشاء الأقسام والرومات النصية فقط بالترتيب
         for category_name, channels in structure.items():
             try:
                 category = await guild.create_category(category_name)
@@ -114,16 +106,13 @@ async def on_ready():
                 print(f"فشل إنشاء القسم {category_name}: {e}")
                 continue
 
-            for ch_name, ch_type, is_private in channels:
+            for ch_name, is_private in channels:
                 try:
                     overwrites = {
-                        guild.default_role: discord.PermissionOverwrite(read_messages=not is_private, connect=not is_private)
+                        guild.default_role: discord.PermissionOverwrite(read_messages=not is_private)
                     }
-                    if ch_type == "text":
-                        await guild.create_text_channel(ch_name, category=category, overwrites=overwrites)
-                    elif ch_type == "voice":
-                        await guild.create_voice_channel(ch_name, category=category, overwrites=overwrites)
-                    print(f"تم إنشاء الروم: {ch_name}")
+                    await guild.create_text_channel(ch_name, category=category, overwrites=overwrites)
+                    print(f"تم إنشاء الروم النصي: {ch_name}")
                 except Exception as e:
                     print(f"فشل إنشاء الروم {ch_name}: {e}")
 
@@ -380,3 +369,4 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
+
