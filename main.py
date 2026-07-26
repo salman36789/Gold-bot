@@ -35,9 +35,11 @@ bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
 LOG_CHANNEL_ID = 1530791985131032656
 TARGET_VERIFY_CHANNEL_ID = 1530770263598301225
-# تم تحديث الرابط هنا ليصبح شعار GT الجديد هو الأساس
-IMAGE_URL = "https://cdn.discordapp.com/attachments/1530705141710327868/1530740000000000000/IMG_٢٠٢٦٠٧٢٦_٢٢٥٣٠٧.jpg" 
-# ملاحظة: إذا قمت برفع الصورة الجديدة في ديسكورد ونسخ الرابط الخاص بها، استبدل الرابط أعلاه برابط صورتك المباشر.
+
+# ----------------------------------------------------
+# رابط صورتك الحقيقي المباشر
+# ----------------------------------------------------
+IMAGE_URL = "https://cdn.discordapp.com/attachments/1530770297207263305/1531042208252170411/IMG__.jpg?ex=6a67c5ab&is=6a66742b&hm=999c8191853acf2d0d419692f3cbac20a15658b2dad2fe468f5104c4f05ccd13&" 
 
 @bot.event
 async def on_ready():
