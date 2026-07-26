@@ -30,46 +30,48 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 LOG_CHANNEL_ID = 1530708101077012653
 
-# متغير لمنع تشغيل الأمر أكثر من مرة في نفس الوقت
+# قفل لمنع التداخل نهائياً
 is_building = False
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
-    print("البوت جاهز! اكتب الأمر !build في السيرفر لترتيبه مرة واحدة وبدون تكرار.")
+    print("البوت جاهز ويعمل بنسخة واحدة سليمة.")
 
 @bot.command(name="build")
 @commands.has_permissions(administrator=True)
+@commands.cooldown(1, 60, commands.BucketType.guild) # منع تكرار الأمر في السيرفر لمدة دقيقة كاملة
 async def build_server(ctx):
     global is_building
     if is_building:
-        await ctx.send("⚠️ عملية البناء تعمل بالفعل، انتظر حتى تنتهي!", delete_after=5)
         return
 
     is_building = True
-    guild = ctx.guild
-    await ctx.send("🔄 جاري تنظيف السيرفر وإعادة بناء الأقسام والرومات بدون تكرار... انتظر قليلاً.")
+    
+    # رسالة واحدة فقط مؤكدة
+    await ctx.send("🔄 جاري تنظيف السيرفر وإعادة بناء الأقسام والرومات... انتظر قليلاً وعدم تكرار الأمر.")
     
     try:
-        print(f"جاري تنظيف وحذف الرومات القديمة في: {guild.name}")
+        guild = ctx.guild
+        print(f"--- بدء عملية بناء السيرفر: {guild.name} ---")
         
-        # 1. حذف جميع الرومات القديمة
+        # 1. حذف الرومات القديمة
         for channel in list(guild.channels):
             try:
                 await channel.delete()
-                await asyncio.sleep(0.4)
-            except Exception as e:
+                await asyncio.sleep(0.3)
+            except:
                 pass
                 
-        # 2. حذف جميع الأقسام القديمة
+        # 2. حذف الأقسام القديمة
         for category in list(guild.categories):
             try:
                 await category.delete()
-                await asyncio.sleep(0.4)
-            except Exception as e:
+                await asyncio.sleep(0.3)
+            except:
                 pass
 
-        # 3. الهيكل المرتب بدون أي تكرار
+        # 3. الهيكل المرتب الجديد
         structure = {
             "Gold Town | Rules": [
                 ("🟥 ┃ rules", "text"),
@@ -142,12 +144,12 @@ async def build_server(ctx):
             ]
         }
 
-        # 4. إنشاء الأقسام والرومات الجديدة بمسافات زمنية آمنة
+        # 4. الإنشاء المنظم
         for category_name, channels in structure.items():
             try:
                 category = await guild.create_category(category_name)
-                await asyncio.sleep(0.8) 
-            except Exception as e:
+                await asyncio.sleep(0.6) 
+            except:
                 continue
 
             for ch_name, ch_type in channels:
@@ -156,14 +158,21 @@ async def build_server(ctx):
                         await guild.create_text_channel(ch_name, category=category)
                     elif ch_type == "voice":
                         await guild.create_voice_channel(ch_name, category=category)
-                    await asyncio.sleep(0.5)
-                except Exception as e:
+                    await asyncio.sleep(0.4)
+                except:
                     pass
 
-        print("✅ تم إعادة بناء السيرفر بنجاح ودون أي تكرار!")
+        print("✅ اكتمل بناء السيرفر بنجاح تام!")
     
     finally:
         is_building = False
+
+@build_server.error
+async def build_error(ctx, error):
+    if isinstance(error, commands.CommandOnCooldown):
+        await ctx.delete() # حذف رسالة الأمر المتكررة فوراً لمنع التشويش
+    elif isinstance(error, commands.MissingPermissions):
+        await ctx.send("❌عذراً، هذا الأمر للأحداث الإدارية فقط.", ephemeral=True)
 
 class RejectModal(discord.ui.Modal, title='سبب الرفض'):
     reason = discord.ui.TextInput(label='السبب', style=discord.TextStyle.paragraph)
@@ -191,14 +200,12 @@ class AdminControlView(discord.ui.View):
         self.original_message = original_message
         
     def check_admin(self, interaction: discord.Interaction):
-        if interaction.user.guild_permissions.administrator:
-            return True
-        return False
+        return interaction.user.guild_permissions.administrator
 
     @discord.ui.button(label="قبول", style=discord.ButtonStyle.green)
     async def approve(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self.check_admin(interaction):
-            await interaction.response.send_message("❌ عذراً، هذه الأزرار مخصصة للإدارة فقط!", ephemeral=True)
+            await interaction.response.send_message("❌ عذراً، هذه الأزرار للإدارة فقط!", ephemeral=True)
             return
 
         c.execute("UPDATE players SET status = 'active' WHERE discord_id = ? AND identity_id = ?", (self.member_id, self.identity_id))
@@ -206,7 +213,7 @@ class AdminControlView(discord.ui.View):
         
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
-            await log_channel.send(f"✅ تم قبول الشخصية **{self.char_name}** (رقم الهوية: `{self.identity_id}`) بواسطة الإدارة ({interaction.user.mention}).")
+            await log_channel.send(f"✅ تم قبول الشخصية **{self.char_name}** (رقم الهوية: `{self.identity_id}`) بواسطة ({interaction.user.mention}).")
             
         await interaction.response.send_message(f"تم قبول الشخصية {self.char_name} بنجاح!", ephemeral=True)
         self.stop()
@@ -214,14 +221,14 @@ class AdminControlView(discord.ui.View):
     @discord.ui.button(label="رفض", style=discord.ButtonStyle.red)
     async def reject(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self.check_admin(interaction):
-            await interaction.response.send_message("❌ عذراً، هذه الأزرار مخصصة للإدارة فقط!", ephemeral=True)
+            await interaction.response.send_message("❌ عذراً، هذه الأزرار للإدارة فقط!", ephemeral=True)
             return
         await interaction.response.send_modal(RejectModal(self.member_id, self.char_name, self.identity_id, self.original_message))
 
     @discord.ui.button(label="حذف الشخصية", style=discord.ButtonStyle.secondary)
     async def delete_char_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not self.check_admin(interaction):
-            await interaction.response.send_message("❌ عذراً، هذه الأزرار مخصصة للإدارة فقط!", ephemeral=True)
+            await interaction.response.send_message("❌ عذراً، هذه الأزرار للإدارة فقط!", ephemeral=True)
             return
 
         c.execute("DELETE FROM players WHERE identity_id = ?", (self.identity_id,))
@@ -229,7 +236,7 @@ class AdminControlView(discord.ui.View):
         
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
-            await log_channel.send(f"🗑️ تم حذف الشخصية **{self.char_name}** (رقم الهوية: `{self.identity_id}`) بواسطة الإدارة ({interaction.user.mention}).")
+            await log_channel.send(f"🗑️ تم حذف الشخصية **{self.char_name}** (هوية: `{self.identity_id}`) بواسطة ({interaction.user.mention}).")
             
         await interaction.response.send_message(f"تم حذف الشخصية ذات الهوية (`{self.identity_id}`) بنجاح.", ephemeral=True)
         await self.original_message.delete()
@@ -411,7 +418,7 @@ async def editchar_cmd(ctx, member: discord.Member):
 async def clear_messages(ctx, amount: int = 10):
     await ctx.channel.purge(limit=amount + 1)
     msg = await ctx.send(f"🧹 تم حذف {amount} رسالة بنجاح.")
-    await discord.utils.sleep_until(discord.utils.utcnow() + discord.utils.timedelta(seconds=3))
+    await asyncio.sleep(3)
     try:
         await msg.delete()
     except:
