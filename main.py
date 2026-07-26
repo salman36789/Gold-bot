@@ -149,6 +149,9 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
     birthplace = discord.ui.TextInput(label='مكان الولادة (Pollito / Sandy / Los)', placeholder='أدخل مكان الولادة...')
 
     async def on_submit(self, interaction: discord.Interaction):
+        # منع خطأ تكرار الإرسال وتأخير الاستجابة
+        await interaction.response.defer(ephemeral=True)
+
         user_id = interaction.user.id
         guild = interaction.guild
         member = interaction.user
@@ -165,7 +168,7 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
                 await member.send(f"❌ **عذراً، تم رفض طلب إنشاء شخصيتك.**\n**السبب:** {message_result}")
             except Exception:
                 pass
-            await interaction.response.send_message(message_result, ephemeral=True)
+            await interaction.followup.send(message_result, ephemeral=True)
             return
         
         c.execute("SELECT COUNT(*) FROM players WHERE discord_id = ?", (user_id,))
@@ -177,7 +180,7 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
                 await member.send(f"❌ **عذراً، تم رفض طلب إنشاء شخصيتك.**\n**السبب:** {error_msg}")
             except Exception:
                 pass
-            await interaction.response.send_message(error_msg, ephemeral=True)
+            await interaction.followup.send(error_msg, ephemeral=True)
             return
 
         while True:
@@ -252,7 +255,7 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
                 f"🆔 **ID Number |** `{new_identity}`"
             )
             
-        await interaction.response.send_message(f"✅ مبروك! اجتازت شخصيتك كافة الشروط وتم **قبولها تلقائياً** وإرسال تفاصيل الهوية إلى رسائلك الخاصة (DM).", ephemeral=True)
+        await interaction.followup.send(f"✅ مبروك! اجتازت شخصيتك كافة الشروط وتم **قبولها تلقائياً** وإرسال تفاصيل الهوية إلى رسائلك الخاصة (DM).", ephemeral=True)
 
 class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
     first_name = discord.ui.TextInput(label='الاسم الأول الجديد (إنجليزي)', placeholder='مثال: Jax...')
@@ -267,6 +270,8 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
         self.old_full_name = old_full_name
 
     async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+
         user_id = interaction.user.id
         guild = interaction.guild
         member = interaction.user
@@ -283,7 +288,7 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
                 await member.send(f"❌ **عذراً، فشلت عملية تزوير الهوية.**\n**السبب:** {message_result}")
             except Exception:
                 pass
-            await interaction.response.send_message(message_result, ephemeral=True)
+            await interaction.followup.send(message_result, ephemeral=True)
             return
 
         new_full_name = f"{f_name} {l_name}"
@@ -323,7 +328,7 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
                 f"🆔 **رقم الهوية:** `{self.identity_id}`"
             )
 
-        await interaction.response.send_message(f"✅ نجحت عملية التزوير! تم تحديث هويتك واسمك إلى: `{new_full_name}`.", ephemeral=True)
+        await interaction.followup.send(f"✅ نجحت عملية التزوير! تم تحديث هويتك واسمك إلى: `{new_full_name}`.", ephemeral=True)
 
 class ForgeSelect(discord.ui.Select):
     def __init__(self, players):
@@ -421,12 +426,10 @@ class CharacterSelect(discord.ui.Select):
     async def callback(self, interaction: discord.Interaction):
         user_id = interaction.user.id
         
-        # إذا اختار إنشاء شخصية، يجب إرسال المودال فوراً بدون استخدام defer لمنع التكرار وخطأ التفاعل
         if self.values[0] == "Create Character":
             await interaction.response.send_modal(RegistrationModal())
             return
 
-        # لبقية الخيارات، نقوم بعمل defer ثم followup لتجنب أي تعليق أو تكرار
         await interaction.response.defer(ephemeral=True)
 
         if self.values[0] == "Login":
@@ -456,7 +459,7 @@ class CharacterSelect(discord.ui.Select):
 
 class CharacterView(discord.ui.View):
     def __init__(self):
-        super().__init__(timeout=None) # منع انتهاء صلاحية القائمة
+        super().__init__(timeout=None)
 
 @bot.command(name="character")
 async def character_command(ctx):
