@@ -29,37 +29,44 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 LOG_CHANNEL_ID = 1530708101077012653
 
-# قائمة الرتب مع إضافة البادئة GD | قبل كل رتبة إدارية
-ADMIN_ROLES = [
-    "GD | القيادة", 
-    # الإدارة العليا وتفريعاتها
-    "GD | الإدارة العليا", 
-    "GD | نائب الإدارة العليا", 
-    "GD | مشرف الإدارة العليا",
-    # الإدارة الوسطى وتفريعاتها
-    "GD | الإدارة الوسطى", 
-    "GD | نائب الإدارة الوسطى", 
-    "GD | مشرف الإدارة الوسطى",
-    # الإدارة الصغرى وتفريعاتها
-    "GD | الإدارة الصغرى", 
-    "GD | نائب الإدارة الصغرى", 
-    "GD | مساعد إداري صغرى", 
-    "GD | مشرف إداري صغرى"
-]
+# قائمة الرتب الجديدة باللغة الإنجليزية، الألوان، والبادئة GD |
+# يتم تحديد الاسم واللون (Hex Color) لكل رتبة
+ADMIN_ROLES_CONFIG = {
+    "GD | Leadership": discord.Color.red(),
+    "GD | High Management": discord.Color.gold(),
+    "GD | High Deputy": discord.Color.orange(),
+    "GD | High Officer": discord.Color.dark_gold(),
+    "GD | Middle Management": discord.Color.blue(),
+    "GD | Middle Deputy": discord.Color.blurple(),
+    "GD | Middle Officer": discord.Color.teal(),
+    "GD | Low Management": discord.Color.green(),
+    "GD | Low Deputy": discord.Color.dark_green(),
+    "GD | Low Officer": discord.Color.light_grey()
+}
+
+ADMIN_ROLES = list(ADMIN_ROLES_CONFIG.keys())
 FORGER_ROLE_NAME = "Forged"
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
+        # حذف الرتب القديمة إن وجدت لتحديثها بالكامل
         for role_name in ADMIN_ROLES:
             existing_role = discord.utils.get(guild.roles, name=role_name)
-            if not existing_role:
+            if existing_role:
                 try:
-                    await guild.create_role(name=role_name, reason="إنشاء رتب الإدارة والهرم الإداري تلقائياً بواسطة البوت")
-                    print(f"تم إنشاء رتبة: {role_name} في سيرفر: {guild.name}")
+                    await existing_role.delete(reason="تحديث الرتب الإدارية تلقائياً")
                 except Exception as e:
-                    print(f"فشل إنشاء رتبة {role_name}: {e}")
+                    print(f"فشل حذف رتبة {role_name}: {e}")
+
+        # إنشاء الرتب بالأسماء والألوان الجديدة
+        for role_name, color in ADMIN_ROLES_CONFIG.items():
+            try:
+                await guild.create_role(name=role_name, color=color, reason="إنشاء هيكل الرتب الإدارية الجديد")
+                print(f"تم إنشاء رتبة: {role_name} باللون المحدد")
+            except Exception as e:
+                print(f"فشل إنشاء رتبة {role_name}: {e}")
 
 class RejectModal(discord.ui.Modal, title='سبب الرفض'):
     reason = discord.ui.TextInput(label='السبب', style=discord.TextStyle.paragraph)
