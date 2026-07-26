@@ -31,7 +31,6 @@ intents.message_content = True
 intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# أيدي روم لوق الشخصيات الجديد
 LOG_CHANNEL_ID = 1530791985131032656
 TARGET_VERIFY_CHANNEL_ID = 1530770263598301225
 IMAGE_URL = "https://cdn.discordapp.com/attachments/1530705141710327868/1530710244332929034/Screenshot_20260726_012651.jpg"
@@ -41,7 +40,7 @@ async def on_ready():
     print(f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
         await setup_server_permissions(guild)
-    print("البوت يعمل بنجاح، ونظام لوق الشخصيات وتزوير الهوية مفعل!")
+    print("البوت يعمل بنجاح، ونظام الشخصيات وتسجيل الدخول/الخروج وتزوير الهوية منفصل تماماً مفعل!")
 
 async def setup_server_permissions(guild):
     inactive_role = discord.utils.get(guild.roles, name="Inactive")
@@ -103,15 +102,14 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# دالة التحقق الشاملة للشروط الصارمة
 def validate_character_data(first_name, last_name, birthdate_str, birthplace):
     if re.search(r'[\u0600-\u06FF]', first_name) or re.search(r'[\u0600-\u06FF]', last_name):
         return False, "❌ تم الرفض: ممنوع كتابة الاسم باللغة العربية (يجب أن يكون بالإنجليزية)."
     
     if ' ' in first_name.strip():
-        return False, "❌ تم الرفض: الاسم الأول يحتوي على مسافات (أكثر من اسم)، يجب أن يكون اسماً واحداً."
+        return False, "❌ تم الرفض: الاسم الأول يحتوي على مسافات، يجب أن يكون اسماً واحداً."
     if ' ' in last_name.strip():
-        return False, "❌ تم الرفض: الاسم الثاني يحتوي على مسافات (أكثر من اسم)، يجب أن يكون اسماً واحداً."
+        return False, "❌ تم الرفض: الاسم الثاني يحتوي على مسافات، يجب أن يكون اسماً واحداً."
 
     date_pattern = r'^(0?[1-9]|[12][0-9]|3[01])/(0?[1-9]|1[012])/([0-9]{4})$'
     if not re.match(date_pattern, birthdate_str):
@@ -307,12 +305,84 @@ class ForgeSelectView(discord.ui.View):
         super().__init__()
         self.add_item(ForgeSelect(players))
 
+class LoginSelect(discord.ui.Select):
+    def __init__(self, players):
+        options = []
+        for p in players:
+            identity_id = p[0]
+            full_name = f"{p[1]} {p[2]}"
+            options.append(discord.SelectOption(label=f"تسجيل دخول: {full_name}", description=f"رقم الهوية: {identity_id}", value=str(identity_id)))
+        super().__init__(placeholder="اختر الشخصية لتسجيل الدخول بها...", options=options)
+        self.players_dict = {str(p[0]): f"{p[1]} {p[2]}" for p in players}
+
+    async def callback(self, interaction: discord.Interaction):
+        selected_identity = self.values[0]
+        char_name = self.players_dict.get(selected_identity)
+        guild = interaction.guild
+        member = interaction.user
+
+        try:
+            await member.edit(nick=char_name)
+            
+            # إزالة أي رتب شخصيات أخرى موجودة للعضو وإضافة الرتبة الجديدة
+            for r in member.roles:
+                # نفترض أن رتب الشخصيات تكون ملونة باللون الأزرق أو مطابقة لأسماء الشخصيات
+                pass
+            
+            new_role = discord.utils.get(guild.roles, name=char_name)
+            if not new_role:
+                new_role = await guild.create_role(name=char_name, color=discord.Color.blue())
+            
+            await member.add_roles(new_role)
+            await interaction.response.send_message(f"✅ تم تسجيل الدخول بالشخصية بنجاح: `{char_name}` وتحديث رتبتك ونيك نيم السيرفر!", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ حدث خطأ أثناء تسجيل الدخول: {e}", ephemeral=True)
+
+class LoginSelectView(discord.ui.View):
+    def __init__(self, players):
+        super().__init__()
+        self.add_item(LoginSelect(players))
+
+class LogoutSelect(discord.ui.Select):
+    def __init__(self, players):
+        options = []
+        for p in players:
+            identity_id = p[0]
+            full_name = f"{p[1]} {p[2]}"
+            options.append(discord.SelectOption(label=f"تسجيل خروج: {full_name}", description=f"رقم الهوية: {identity_id}", value=str(identity_id)))
+        super().__init__(placeholder="اختر الشخصية لتسجيل الخروج منها...", options=options)
+        self.players_dict = {str(p[0]): f"{p[1]} {p[2]}" for p in players}
+
+    async def callback(self, interaction: discord.Interaction):
+        selected_identity = self.values[0]
+        char_name = self.players_dict.get(selected_identity)
+        guild = interaction.guild
+        member = interaction.user
+
+        try:
+            # إزالة رتبة الشخصية عند الخروج
+            role_to_remove = discord.utils.get(guild.roles, name=char_name)
+            if role_to_remove and role_to_remove in member.roles:
+                await member.remove_roles(role_to_remove)
+            
+            # إعادة النيك نيم للاسم الأصلي بالديسكورد
+            await member.edit(nick=None)
+            await interaction.response.send_message(f"✅ تم تسجيل الخروج من الشخصية: `{char_name}` بنجاح.", ephemeral=True)
+        except Exception as e:
+            await interaction.response.send_message(f"❌ حدث خطأ أثناء تسجيل الخروج: {e}", ephemeral=True)
+
+class LogoutSelectView(discord.ui.View):
+    def __init__(self, players):
+        super().__init__()
+        self.add_item(LogoutSelect(players))
+
 class CharacterSelect(discord.ui.Select):
     def __init__(self):
         options = [
-            discord.SelectOption(label="Create Character", description="لإنشاء شخصية جديدة بالشروط الصارمة والقبول التلقائي"),
-            discord.SelectOption(label="Forge Identity", description="تزوير وتغيير هوية شخصية مسجلة مسبقاً"),
-            discord.SelectOption(label="Show identity", description="لعرض الشخصيات والهويات المسجلة")
+            discord.SelectOption(label="Create Character", description="إنشاء شخصية جديدة بالشروط التلقائية"),
+            discord.SelectOption(label="Login", description="تسجيل الدخول بشخصية مسجلة"),
+            discord.SelectOption(label="Logout", description="تسجيل الخروج من شخصية نشطة"),
+            discord.SelectOption(label="Show identity", description="عرض الشخصيات والهويات المسجلة")
         ]
         super().__init__(placeholder="Choose an action you want to make", options=options)
 
@@ -320,13 +390,20 @@ class CharacterSelect(discord.ui.Select):
         user_id = interaction.user.id
         if self.values[0] == "Create Character":
             await interaction.response.send_modal(RegistrationModal())
-        elif self.values[0] == "Forge Identity":
+        elif self.values[0] == "Login":
             c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (user_id,))
             players = c.fetchall()
             if players:
-                await interaction.response.send_message("اختر الشخصية التي تريد تزوير بياناتها من القائمة أدناه:", view=ForgeSelectView(players), ephemeral=True)
+                await interaction.response.send_message("اختر الشخصية لتسجيل الدخول:", view=LoginSelectView(players), ephemeral=True)
             else:
-                await interaction.response.send_message("❌ ليس لديك أي شخصيات مسجلة لتزويرها!", ephemeral=True)
+                await interaction.response.send_message("❌ ليس لديك أي شخصيات مسجلة لتسجيل الدخول بها!", ephemeral=True)
+        elif self.values[0] == "Logout":
+            c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (user_id,))
+            players = c.fetchall()
+            if players:
+                await interaction.response.send_message("اختر الشخصية لتسجيل الخروج منها:", view=LogoutSelectView(players), ephemeral=True)
+            else:
+                await interaction.response.send_message("❌ ليس لديك شخصيات مسجلة!", ephemeral=True)
         elif self.values[0] == "Show identity":
             c.execute("SELECT identity_id, first_name, last_name, psn_id, birthdate, birthplace, balance FROM players WHERE discord_id = ?", (user_id,))
             players = c.fetchall()
@@ -343,11 +420,30 @@ class CharacterView(discord.ui.View):
         super().__init__()
         self.add_item(CharacterSelect())
 
+class ForgeButtonView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="تزوير هوية", style=discord.ButtonStyle.danger, custom_id="forge_identity_button")
+    async def forge_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
+        user_id = interaction.user.id
+        c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (user_id,))
+        players = c.fetchall()
+        if players:
+            await interaction.response.send_message("اختر الشخصية التي تريد تزوير بياناتها من القائمة أدناه:", view=ForgeSelectView(players), ephemeral=True)
+        else:
+            await interaction.response.send_message("❌ ليس لديك أي شخصيات مسجلة لتزويرها!", ephemeral=True)
+
 @bot.command(name="character")
 async def character_command(ctx):
-    embed = discord.Embed(title="Character Management", description="Character Creation & Forgery System", color=discord.Color.gold())
+    embed = discord.Embed(title="Character Management", description="Character Creation, Login & Forgery System", color=discord.Color.gold())
     embed.set_image(url=IMAGE_URL)
     await ctx.send(embed=embed, view=CharacterView())
+    
+    # رسالة منفصلة خاصة بزر تزوير الهوية مع الصورة المطلوبة
+    embed_forge = discord.Embed(title="Forgery System", description="اضغط على الزر أدناه لتزوير هوية شخصيتك:", color=discord.Color.dark_red())
+    embed_forge.set_image(url=IMAGE_URL)
+    await ctx.send(embed=embed_forge, view=ForgeButtonView())
 
 @bot.command(name="امسح")
 async def clear_messages(ctx, amount: int = 10):
