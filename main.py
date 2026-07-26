@@ -48,7 +48,7 @@ async def on_ready():
 
 async def setup_server_permissions(guild):
     inactive_role = discord.utils.get(guild.roles, name="Inactive")
-    identity_role = discord.utils.get(guild.roles, name="Identity")
+    identity_role = discord.utils.get(guild.roles, name="GT | Identity")
     
     game_categories_names = [
         "gt | on display", "gt | theft", "collection", "gt | justice team", 
@@ -209,18 +209,13 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
                 print(f"Note: Nickname error: {nick_err}")
 
             inactive_role = discord.utils.get(guild.roles, name="Inactive")
-            identity_role = discord.utils.get(guild.roles, name="Identity")
+            identity_role = discord.utils.get(guild.roles, name="GT | Identity")
             
             if inactive_role and inactive_role in member.roles:
                 await member.remove_roles(inactive_role)
             
             if identity_role and identity_role not in member.roles:
                 await member.add_roles(identity_role)
-
-            character_role = discord.utils.get(guild.roles, name=role_character_name)
-            if not character_role:
-                character_role = await guild.create_role(name=role_character_name, color=discord.Color.blue(), reason="رتبة اسم الشخصية")
-            await member.add_roles(character_role)
             
             verified_role = discord.utils.get(guild.roles, name="Verified")
             unverified_role = discord.utils.get(guild.roles, name="Unverified")
@@ -306,14 +301,6 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
                 await member.edit(nick=new_full_name)
             except Exception as e:
                 print(f"Nickname note: {e}")
-
-            old_role = discord.utils.get(guild.roles, name=self.old_full_name)
-            if old_role:
-                await old_role.delete(reason="تزوير هوية وتغيير اسم الشخصية")
-
-            new_role = await guild.create_role(name=new_full_name, color=discord.Color.blue(), reason="رتبة تزوير الهوية الجديدة")
-            await member.add_roles(new_role)
-
         except Exception as e:
             print(f"Error in forge role edit: {e}")
 
@@ -370,12 +357,7 @@ class LoginSelect(discord.ui.Select):
 
         try:
             await member.edit(nick=char_name)
-            new_role = discord.utils.get(guild.roles, name=char_name)
-            if not new_role:
-                new_role = await guild.create_role(name=char_name, color=discord.Color.blue())
-            
-            await member.add_roles(new_role)
-            await interaction.response.send_message(f"✅ تم تسجيل الدخول بالشخصية بنجاح: `{char_name}` وتحديث رتبتك ونيك نيم السيرفر!", ephemeral=True)
+            await interaction.response.send_message(f"✅ تم تسجيل الدخول بالشخصية بنجاح: `{char_name}` وتحديث نيك نيم السيرفر!", ephemeral=True)
         except Exception as e:
             await interaction.response.send_message(f"❌ حدث خطأ أثناء تسجيل الدخول: {e}", ephemeral=True)
 
@@ -401,10 +383,6 @@ class LogoutSelect(discord.ui.Select):
         member = interaction.user
 
         try:
-            role_to_remove = discord.utils.get(guild.roles, name=char_name)
-            if role_to_remove and role_to_remove in member.roles:
-                await member.remove_roles(role_to_remove)
-            
             await member.edit(nick=None)
             await interaction.response.send_message(f"✅ تم تسجيل الخروج من الشخصية: `{char_name}` بنجاح.", ephemeral=True)
         except Exception as e:
