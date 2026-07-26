@@ -4,6 +4,7 @@ import sqlite3
 import os
 import random
 import asyncio
+import time
 
 DB_FILE = 'bot_database.db'
 
@@ -30,26 +31,31 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 LOG_CHANNEL_ID = 1530708101077012653
 
-# قفل لمنع التداخل نهائياً
+# متغيرات حماية صارمة لمنع التكرار نهائياً
 is_building = False
+last_build_time = 0
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
-    print("البوت جاهز ويعمل بنسخة واحدة سليمة.")
+    print("البوت جاهز!")
 
 @bot.command(name="build")
 @commands.has_permissions(administrator=True)
-@commands.cooldown(1, 60, commands.BucketType.guild) # منع تكرار الأمر في السيرفر لمدة دقيقة كاملة
 async def build_server(ctx):
-    global is_building
-    if is_building:
+    global is_building, last_build_time
+    
+    current_time = time.time()
+    
+    # حماية ضد التكرار الفوري لو البوت شغال بنسختين أو صار دبل كليك
+    if is_building or (current_time - last_build_time < 10):
         return
 
     is_building = True
+    last_build_time = current_time
     
-    # رسالة واحدة فقط مؤكدة
-    await ctx.send("🔄 جاري تنظيف السيرفر وإعادة بناء الأقسام والرومات... انتظر قليلاً وعدم تكرار الأمر.")
+    # إرسال رسالة واحدة فقط وضمان عدم تكرارها
+    await ctx.send("🔄 جاري تنظيف السيرفر وإعادة بناء الأقسام والرومات... انتظر قليلاً.")
     
     try:
         guild = ctx.guild
@@ -166,13 +172,6 @@ async def build_server(ctx):
     
     finally:
         is_building = False
-
-@build_server.error
-async def build_error(ctx, error):
-    if isinstance(error, commands.CommandOnCooldown):
-        await ctx.delete() # حذف رسالة الأمر المتكررة فوراً لمنع التشويش
-    elif isinstance(error, commands.MissingPermissions):
-        await ctx.send("❌عذراً، هذا الأمر للأحداث الإدارية فقط.", ephemeral=True)
 
 class RejectModal(discord.ui.Modal, title='سبب الرفض'):
     reason = discord.ui.TextInput(label='السبب', style=discord.TextStyle.paragraph)
