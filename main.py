@@ -31,7 +31,8 @@ intents.message_content = True
 intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-LOG_CHANNEL_ID = 1530708101077012653
+# أيدي روم لوق الشخصيات الجديد
+LOG_CHANNEL_ID = 1530791985131032656
 TARGET_VERIFY_CHANNEL_ID = 1530770263598301225
 IMAGE_URL = "https://cdn.discordapp.com/attachments/1530705141710327868/1530710244332929034/Screenshot_20260726_012651.jpg"
 
@@ -40,7 +41,7 @@ async def on_ready():
     print(f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
         await setup_server_permissions(guild)
-    print("البوت يعمل بنجاح، ونظام تزوير الهوية والشروط الصارمة مفعل!")
+    print("البوت يعمل بنجاح، ونظام لوق الشخصيات وتزوير الهوية مفعل!")
 
 async def setup_server_permissions(guild):
     inactive_role = discord.utils.get(guild.roles, name="Inactive")
@@ -102,15 +103,15 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# دالة التحقق الشاملة للشروط
+# دالة التحقق الشاملة للشروط الصارمة
 def validate_character_data(first_name, last_name, birthdate_str, birthplace):
     if re.search(r'[\u0600-\u06FF]', first_name) or re.search(r'[\u0600-\u06FF]', last_name):
         return False, "❌ تم الرفض: ممنوع كتابة الاسم باللغة العربية (يجب أن يكون بالإنجليزية)."
     
     if ' ' in first_name.strip():
-        return False, "❌ تم الرفض: الاسم الأول يحتوي على مسافات، يجب أن يكون اسماً واحداً."
+        return False, "❌ تم الرفض: الاسم الأول يحتوي على مسافات (أكثر من اسم)، يجب أن يكون اسماً واحداً."
     if ' ' in last_name.strip():
-        return False, "❌ تم الرفض: الاسم الثاني يحتوي على مسافات، يجب أن يكون اسماً واحداً."
+        return False, "❌ تم الرفض: الاسم الثاني يحتوي على مسافات (أكثر من اسم)، يجب أن يكون اسماً واحداً."
 
     date_pattern = r'^(0?[1-9]|[12][0-9]|3[01])/(0?[1-9]|1[012])/([0-9]{4})$'
     if not re.match(date_pattern, birthdate_str):
@@ -253,7 +254,6 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
 
         new_full_name = f"{f_name} {l_name}"
 
-        # تحديث بيانات الشخصية في القاعدة بناء على رقم الهوية المختارة
         c.execute("""UPDATE players 
                      SET first_name = ?, last_name = ?, psn_id = ?, birthdate = ?, birthplace = ? 
                      WHERE identity_id = ? AND discord_id = ?""",
@@ -261,7 +261,6 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
         conn.commit()
 
         try:
-            # تعديل اسم الرول القديم أو إنشاء رتبة جديدة بالاسم المزور وتحديث نيك نيم العضو
             try:
                 await member.edit(nick=new_full_name)
             except Exception as e:
@@ -283,7 +282,7 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
                 f"⚠️ **تم تزوير وتحديث هوية بنجاح:** {interaction.user.mention}\n"
                 f"👤 **الاسم القديم:** `{self.old_full_name}` ➡️ **الاسم المزور الجديد:** `{new_full_name}`\n"
                 f"🆔 **رقم الهوية:** `{self.identity_id}`\n"
-                f"🎮 **أيدي سوني الجديد:** `{entered_psn}`"
+                f"🎮 **أيدي السوني الجديد:** `{entered_psn}`"
             )
 
         await interaction.response.send_message(f"✅ نجحت عملية التزوير! تم تحديث هويتك واسمك إلى: `{new_full_name}`.", ephemeral=True)
