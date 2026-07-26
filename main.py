@@ -33,26 +33,12 @@ LOG_CHANNEL_ID = 1530708101077012653
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
-        print(f"جاري مسح الرومات القديمة وتأسيس رومات Gold Town النصية فقط في سيرفر: {guild.name}")
+        print(f"جاري فحص وتأسيس رومات Gold Town في سيرفر: {guild.name}")
         
-        # 1. حذف جميع الأقسام والرومات القديمة الموجودة في السيرفر أولاً
-        for channel in guild.channels:
-            try:
-                await channel.delete()
-            except Exception as e:
-                print(f"فشل حذف الروم {channel.name}: {e}")
-                
-        for category in guild.categories:
-            try:
-                await category.delete()
-            except Exception as e:
-                print(f"فشل حذف القسم {category.name}: {e}")
-
-        # 2. هيكل الأقسام والرومات الجديدة (نصية فقط بدون أي فويس وبدون تكرار)
+        # هيكل الأقسام والرومات (بدون أقفل وبدون تكرار)
         structure = {
             "Gold Town | Rules": [
-                ("🔒 ┃ prove-your-self", True),
-                ("🟥 ┃ rules", True),
+                ("🟥 ┃ rules", False),
                 ("📜 ┃ new-rules", False),
                 ("🔗 ┃ pinned", False)
             ],
@@ -65,13 +51,7 @@ async def on_ready():
                 ("🔗 ┃ partners", False)
             ],
             "GT | Rooms": [
-                ("🔒 ┃ discord-gold", True),
-                ("💬 ┃ general-chat", False),
-                ("🔒 ┃ owner-room", True),
-                ("🔒 ┃ founders-room", True),
-                ("🔒 ┃ high-command", True),
-                ("🔒 ┃ management-room", True),
-                ("🔒 ┃ programmers", True)
+                ("💬 ┃ general-chat", False)
             ],
             "GT | Support": [
                 ("📧 ┃ tickets", False),
@@ -97,24 +77,28 @@ async def on_ready():
             ]
         }
 
-        # 3. إنشاء الأقسام والرومات النصية فقط بالترتيب
+        # إنشاء الأقسام والرومات فقط إذا لم تكن موجودة لمنع التكرار
         for category_name, channels in structure.items():
-            try:
-                category = await guild.create_category(category_name)
-                print(f"تم إنشاء القسم: {category_name}")
-            except Exception as e:
-                print(f"فشل إنشاء القسم {category_name}: {e}")
-                continue
+            category = discord.utils.get(guild.categories, name=category_name)
+            if not category:
+                try:
+                    category = await guild.create_category(category_name)
+                    print(f"تم إنشاء القسم: {category_name}")
+                except Exception as e:
+                    print(f"فشل إنشاء القسم {category_name}: {e}")
+                    continue
 
             for ch_name, is_private in channels:
-                try:
-                    overwrites = {
-                        guild.default_role: discord.PermissionOverwrite(read_messages=not is_private)
-                    }
-                    await guild.create_text_channel(ch_name, category=category, overwrites=overwrites)
-                    print(f"تم إنشاء الروم النصي: {ch_name}")
-                except Exception as e:
-                    print(f"فشل إنشاء الروم {ch_name}: {e}")
+                existing_ch = discord.utils.get(guild.channels, name=ch_name)
+                if not existing_ch:
+                    try:
+                        overwrites = {
+                            guild.default_role: discord.PermissionOverwrite(read_messages=not is_private)
+                        }
+                        await guild.create_text_channel(ch_name, category=category, overwrites=overwrites)
+                        print(f"تم إنشاء الروم النصي: {ch_name}")
+                    except Exception as e:
+                        print(f"فشل إنشاء الروم {ch_name}: {e}")
 
 class RejectModal(discord.ui.Modal, title='سبب الرفض'):
     reason = discord.ui.TextInput(label='السبب', style=discord.TextStyle.paragraph)
