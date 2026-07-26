@@ -37,7 +37,18 @@ last_build_time = 0
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
-    print("البوت جاهز تماماً!")
+    print("البوت جاهز ومنظم بنظام الصلاحيات الخاص برتب الهويات!")
+
+# إعطاء رتبة غير المتفعلين تلقائياً عند دخول أي عضو جديد
+@bot.event
+async def on_member_join(member):
+    guild = member.guild
+    unverified_role = discord.utils.get(guild.roles, name="الغير متفعلين")
+    if unverified_role:
+        try:
+            await member.add_roles(unverified_role)
+        except:
+            pass
 
 @bot.command(name="build")
 @commands.has_permissions(administrator=True)
@@ -51,37 +62,49 @@ async def build_server(ctx):
     is_building = True
     last_build_time = current_time
     
-    await ctx.send("🔄 جاري فرمتة وتنظيف السيرفر بالكامل وإعادة بناء الأقسام بدقة... انتظر حتى يكتمل.")
+    await ctx.send("🔄 جاري فرمتة السيرفر، ضبط الرتب (أخضر وأحمر)، وبناء الأقسام وصلاحيات الهويات...")
     
     try:
         guild = ctx.guild
-        print(f"--- بدء عملية الفرمتة والبناء للسيرفر: {guild.name} ---")
         
-        # 1. حذف كافة الرومات أولاً مع التأكد التام
+        # 1. إنشاء أو تحديث الرتب الأساسية بالألوان المطلوبة
+        verified_role = discord.utils.get(guild.roles, name="المتفعلين")
+        if not verified_role:
+            verified_role = await guild.create_role(name="المتفعلين", color=discord.Color.green(), reason="رتبة الأعضاء المتفعلين")
+        else:
+            await verified_role.edit(color=discord.Color.green())
+            
+        unverified_role = discord.utils.get(guild.roles, name="الغير متفعلين")
+        if not unverified_role:
+            unverified_role = await guild.create_role(name="الغير متفعلين", color=discord.Color.red(), reason="رتبة الأعضاء غير المتفعلين")
+        else:
+            await unverified_role.edit(color=discord.Color.red())
+
+        # 2. حذف كافة الرومات القديمة
         for channel in list(guild.channels):
             try:
                 await channel.delete()
-                await asyncio.sleep(0.6)
-            except Exception as e:
-                print(f"خطأ في حذف روم: {e}")
+                await asyncio.sleep(0.4)
+            except:
+                pass
                 
-        # 2. حذف كافة الأقسام مع التأكد التام
+        # 3. حذف كافة الأقسام القديمة
         for category in list(guild.categories):
             try:
                 await category.delete()
-                await asyncio.sleep(0.6)
-            except Exception as e:
-                print(f"خطأ في حذف قسم: {e}")
+                await asyncio.sleep(0.4)
+            except:
+                pass
 
-        # انتظار قصير لضمان استقرار السيرفر من جهة ديسكورد
-        await asyncio.sleep(2)
+        await asyncio.sleep(1)
 
-        # 3. الهيكل الجديد المرتب (بدون أي تكرار بالأسماء)
+        # 4. الهيكل الكامل للسيرفر
         structure = {
             "Gold Town | Rules": [
                 ("🟥 ┃ rules", "text"),
                 ("📜 ┃ new-rules", "text"),
-                ("🔗 ┃ pinned", "text")
+                ("🔗 ┃ pinned", "text"),
+                ("🆔 ┃ enter-id", "text")
             ],
             "Gold Town | Ads": [
                 ("📢 ┃ announcement", "text"),
@@ -90,6 +113,15 @@ async def build_server(ctx):
                 ("🔍 ┃ hints", "text"),
                 ("🔮 ┃ boosters", "text"),
                 ("🔗 ┃ partners", "text")
+            ],
+            "Gold Town Identity": [
+                ("📇 ┃ character-rules", "text"),
+                ("📇 ┃ create-character", "text"),
+                ("📇 ┃ تزوير-الهوية", "text")
+            ],
+            "Gold Town | General": [
+                ("🔔 ┃ Notices", "text"),
+                ("✈️ ┃ Trips", "text")
             ],
             "GT | Support": [
                 ("📧 ┃ tickets", "text"),
@@ -109,10 +141,6 @@ async def build_server(ctx):
             "Social": [
                 ("🎥 ┃ tiktok", "text"),
                 ("📺 ┃ live-now", "text")
-            ],
-            "Gold Town Identity": [
-                ("📇 ┃ character-rules", "text"),
-                ("📇 ┃ create-character", "text")
             ],
             "GT | Phone": [
                 ("📄 ┃ News", "text"),
@@ -135,7 +163,7 @@ async def build_server(ctx):
                 ("📜 ┃ Robbery-Rules", "text"),
                 ("🚨 ┃ Reports", "text")
             ],
-            "GT | Collection": [
+            "Collection": [
                 ("🟧 ┃ Factory-Rules", "text"),
                 ("🟧 ┃ Factory-Location", "text"),
                 ("🟧 ┃ Factory", "text")
@@ -149,12 +177,34 @@ async def build_server(ctx):
             ]
         }
 
-        # 4. بناء الأقسام والرومات الجديدة بمسافات أمان عالية
+        # دالة للبحث عن رتب الهويات المتاحة في السيرفر وقت البناء
+        identity_roles = [role for role in guild.roles if role.name.startswith("GD |")]
+
+        # 5. بناء الأقسام وتطبيق الصلاحيات بدقة بناءً على طلبك
         for category_name, channels in structure.items():
             try:
-                category = await guild.create_category(category_name)
-                await asyncio.sleep(1.0) 
-            except Exception as e:
+                # الأقسام التي تظهر للجميع أو غير المتفعلين
+                if category_name in ["Gold Town | Rules", "Gold Town | Ads", "Gold Town Identity", "Gold Town | General"]:
+                    overwrites = {
+                        guild.default_role: discord.PermissionOverwrite(read_messages=False),
+                        unverified_role: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+                        verified_role: discord.PermissionOverwrite(read_messages=True)
+                    }
+                    category = await guild.create_category(category_name, overwrites=overwrites)
+                else:
+                    # باقي الأقسام (التي تحت الكاركتر واللعبة) لا يراها إلا من لديه رتبة الهوية (GD |)
+                    overwrites = {
+                        guild.default_role: discord.PermissionOverwrite(read_messages=False),
+                        verified_role: discord.PermissionOverwrite(read_messages=False)
+                    }
+                    # السماح لكل رتبة هوية موجودة برؤية هذه الأقسام
+                    for i_role in identity_roles:
+                        overwrites[i_role] = discord.PermissionOverwrite(read_messages=True)
+
+                    category = await guild.create_category(category_name, overwrites=overwrites)
+                
+                await asyncio.sleep(0.8) 
+            except:
                 continue
 
             for ch_name, ch_type in channels:
@@ -163,92 +213,52 @@ async def build_server(ctx):
                         await guild.create_text_channel(ch_name, category=category)
                     elif ch_type == "voice":
                         await guild.create_voice_channel(ch_name, category=category)
-                    await asyncio.sleep(0.6)
-                except Exception as e:
+                    await asyncio.sleep(0.4)
+                except:
                     pass
 
-        print("✅ تم فرمتة وبناء السيرفر بالكامل بنجاح ودون أي تكرار!")
+        print("✅ تم بناء السيرفر وتخصيص صلاحيات رتب الهويات بنجاح كامل!")
     
     finally:
         is_building = False
 
-class RejectModal(discord.ui.Modal, title='سبب الرفض'):
-    reason = discord.ui.TextInput(label='السبب', style=discord.TextStyle.paragraph)
-    
-    def __init__(self, member_id, char_name, identity_id, original_message):
-        super().__init__()
-        self.member_id = member_id
-        self.char_name = char_name
-        self.identity_id = identity_id
-        self.original_message = original_message
-        
-    async def on_submit(self, interaction: discord.Interaction):
-        log_channel = bot.get_channel(LOG_CHANNEL_ID)
-        if log_channel:
-            await log_channel.send(f"❌ تم رفض الشخصية **{self.char_name}** (رقم الهوية: `{self.identity_id}`)\nالسبب: {self.reason.value}")
-        await interaction.response.send_message("تم رفض الطلب وإرسال اللوق بنجاح.", ephemeral=True)
-        await self.original_message.delete()
+# نظام التفعيل التلقائي عند كتابة الـ ID في روم enter-id
+@bot.event
+async def on_message(message):
+    if message.author.bot:
+        return
 
-class AdminControlView(discord.ui.View):
-    def __init__(self, member_id, char_name, identity_id, original_message):
-        super().__init__(timeout=None)
-        self.member_id = member_id
-        self.char_name = char_name
-        self.identity_id = identity_id
-        self.original_message = original_message
-        
-    def check_admin(self, interaction: discord.Interaction):
-        return interaction.user.guild_permissions.administrator
-
-    @discord.ui.button(label="قبول", style=discord.ButtonStyle.green)
-    async def approve(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not self.check_admin(interaction):
-            await interaction.response.send_message("❌ عذراً، هذه الأزرار للإدارة فقط!", ephemeral=True)
-            return
-
-        c.execute("UPDATE players SET status = 'active' WHERE discord_id = ? AND identity_id = ?", (self.member_id, self.identity_id))
-        conn.commit()
-        
-        log_channel = bot.get_channel(LOG_CHANNEL_ID)
-        if log_channel:
-            await log_channel.send(f"✅ تم قبول الشخصية **{self.char_name}** (رقم الهوية: `{self.identity_id}`) بواسطة ({interaction.user.mention}).")
+    if message.channel.name == "enter-id":
+        try:
+            await message.add_reaction("✅")
+            guild = message.guild
+            member = message.author
             
-        await interaction.response.send_message(f"تم قبول الشخصية {self.char_name} بنجاح!", ephemeral=True)
-        self.stop()
-        
-    @discord.ui.button(label="رفض", style=discord.ButtonStyle.red)
-    async def reject(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not self.check_admin(interaction):
-            await interaction.response.send_message("❌ عذراً، هذه الأزرار للإدارة فقط!", ephemeral=True)
-            return
-        await interaction.response.send_modal(RejectModal(self.member_id, self.char_name, self.identity_id, self.original_message))
-
-    @discord.ui.button(label="حذف الشخصية", style=discord.ButtonStyle.secondary)
-    async def delete_char_btn(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if not self.check_admin(interaction):
-            await interaction.response.send_message("❌ عذراً، هذه الأزرار للإدارة فقط!", ephemeral=True)
-            return
-
-        c.execute("DELETE FROM players WHERE identity_id = ?", (self.identity_id,))
-        conn.commit()
-        
-        log_channel = bot.get_channel(LOG_CHANNEL_ID)
-        if log_channel:
-            await log_channel.send(f"🗑️ تم حذف الشخصية **{self.char_name}** (هوية: `{self.identity_id}`) بواسطة ({interaction.user.mention}).")
+            verified_role = discord.utils.get(guild.roles, name="المتفعلين")
+            unverified_role = discord.utils.get(guild.roles, name="الغير متفعلين")
             
-        await interaction.response.send_message(f"تم حذف الشخصية ذات الهوية (`{self.identity_id}`) بنجاح.", ephemeral=True)
-        await self.original_message.delete()
-        self.stop()
+            if verified_role and verified_role not in member.roles:
+                await member.add_roles(verified_role)
+            if unverified_role and unverified_role in member.roles:
+                await member.remove_roles(unverified_role)
+                
+            await message.channel.send(f"✅ تم تفعيلك بنجاح يا {member.mention}! نورت السيرفر.", delete_after=5)
+        except Exception as e:
+            print(f"خطأ في التفعيل التلقائي: {e}")
 
+    await bot.process_commands(message)
+
+# نافذة تسجيل الشخصية وتوليد رتبة GD | باللون الأزرق، ومنحها صلاحية رؤية أقسام اللعبة تلقائياً
 class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديدة'):
-    first_name = discord.ui.TextInput(label='الاسم الأول', placeholder='أدخل الاسم الأول...', min_length=2)
-    last_name = discord.ui.TextInput(label='الاسم الثاني', placeholder='أدخل الاسم الثاني...', min_length=2)
+    first_name = discord.ui.TextInput(label='الاسم الأول (بالإنجليزي)', placeholder='First Name...', min_length=2)
+    last_name = discord.ui.TextInput(label='الاسم الثاني (بالإنجليزي)', placeholder='Last Name...', min_length=2)
     birthdate = discord.ui.TextInput(label='مواليد الشخصية', placeholder='مثال: 1998/05/12')
     birthplace = discord.ui.TextInput(label='مكان الولادة', placeholder='أدخل مكان الولادة...')
-    bio = discord.ui.TextInput(label='فكرة الشخصية', style=discord.TextStyle.paragraph, placeholder='اكتب قصة أو فكرة شخصيتك هنا...')
+    bio = discord.ui.TextInput(label='فكرة الشخصية', style=discord.TextStyle.paragraph, placeholder='اكتب قصة شخصيتك هنا...')
 
     async def on_submit(self, interaction: discord.Interaction):
         user_id = interaction.user.id
+        guild = interaction.guild
         
         c.execute("SELECT COUNT(*) FROM players WHERE discord_id = ?", (user_id,))
         count = c.fetchone()[0]
@@ -263,82 +273,67 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             if not c.fetchone():
                 break
 
-        full_name = f"{self.first_name.value} {self.last_name.value}"
+        full_name_eng = f"GD | {self.first_name.value} {self.last_name.value}"
 
         c.execute("INSERT INTO players (discord_id, identity_id, first_name, last_name, birthdate, birthplace, bio, balance, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-                  (user_id, new_identity, self.first_name.value, self.last_name.value, self.birthdate.value, self.birthplace.value, self.bio.value, 1000, 'pending'))
+                  (user_id, new_identity, self.first_name.value, self.last_name.value, self.birthdate.value, self.birthplace.value, self.bio.value, 1000, 'active'))
         conn.commit()
         
+        try:
+            blue_role = await guild.create_role(name=full_name_eng, color=discord.Color.blue(), reason="رتبة هوية اللاعب")
+            member = interaction.user
+            await member.add_roles(blue_role)
+            
+            verified_role = discord.utils.get(guild.roles, name="المتفعلين")
+            unverified_role = discord.utils.get(guild.roles, name="الغير متفعلين")
+            if verified_role:
+                await member.add_roles(verified_role)
+            if unverified_role and unverified_role in member.roles:
+                await member.remove_roles(unverified_role)
+
+            # تحديث صلاحيات الأقسام التحتية (أقسام اللعبة) لتشمل هذه الرتبة الجديدة تلقائياً
+            game_categories = [
+                "GT | Phone", "GT | Command", "GT | On display", 
+                "GT | Theft", "Collection", "GT | Justice Team"
+            ]
+            for cat_name in game_categories:
+                cat = discord.utils.get(guild.categories, name=cat_name)
+                if cat:
+                    await cat.set_permissions(blue_role, read_messages=True)
+
+        except Exception as e:
+            print(f"خطأ في إنشاء رتبة الهوية والصلاحيات: {e}")
+
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
-            msg = await log_channel.send(
-                f"🔔 **طلب تسجيل شخصية جديدة من:** {interaction.user.mention}\n"
+            await log_channel.send(
+                f"📇 **تم إنشاء هوية وتفعيل العضو وتحديث صلاحياته:** {interaction.user.mention}\n"
                 f"🆔 **رقم الهوية:** `{new_identity}`\n"
-                f"👤 **الاسم الكامل:** {full_name}\n"
-                f"📅 **المواليد:** {self.birthdate.value}\n"
-                f"🌍 **مكان الولادة:** {self.birthplace.value}\n"
-                f"📖 **الفكرة:** {self.bio.value}"
+                f"👤 **الاسم:** {full_name_eng}\n"
+                f"📅 **المواليد:** {self.birthdate.value}"
             )
-            await msg.edit(view=AdminControlView(user_id, full_name, new_identity, msg))
             
-        await interaction.response.send_message(f"تم إرسال طلبك للإدارة! رقم هويتك هو: **{new_identity}** (بانتظار الموافقة).", ephemeral=True)
-
-class LoginSelect(discord.ui.Select):
-    def __init__(self, characters):
-        options = [discord.SelectOption(label=f"{p[1]} {p[2]}", value=str(p[0]), description=f"رقم الهوية: {p[0]}") for p in characters]
-        super().__init__(placeholder="اختر الهوية المطلوبة للتبديل...", options=options)
-
-    async def callback(self, interaction: discord.Interaction):
-        selected_identity = int(self.values[0])
-        c.execute("SELECT first_name, last_name FROM players WHERE identity_id = ?", (selected_identity,))
-        char = c.fetchone()
-        if char:
-            await interaction.response.send_message(f"✅ تم التبديل وتفعيل الهوية بنجاح: **{char[0]} {char[1]}** (هوية: `{selected_identity}`)", ephemeral=True)
-        else:
-            await interaction.response.send_message("❌ لم يتم العثور على الشخصية.", ephemeral=True)
-
-class LoginView(discord.ui.View):
-    def __init__(self, characters):
-        super().__init__()
-        self.add_item(LoginSelect(characters))
+        await interaction.response.send_message(f"✅ تم إنشاء شخصيتك بنجاح! رقم هويتك: **{new_identity}** وتم منحك رتبة الهوية الزرقاء وفتح أقسام اللعبة لك تلقائياً.", ephemeral=True)
 
 class CharacterSelect(discord.ui.Select):
     def __init__(self):
         options = [
             discord.SelectOption(label="Create Character", description="لإنشاء شخصية جديدة (بحد أقصى 3)"),
-            discord.SelectOption(label="Character Login", description="لتسجيل الدخول بالشخصية"),
-            discord.SelectOption(label="Change Identity", description="لتغيير أو التبديل بين هوياتك المسجلة"),
-            discord.SelectOption(label="Character Logout", description="لتسجيل الخروج من الشخصية الحالية"),
             discord.SelectOption(label="Show identity", description="لعرض الهويات المسجلة")
         ]
         super().__init__(placeholder="Choose an action you want to make", options=options)
 
     async def callback(self, interaction: discord.Interaction):
         user_id = interaction.user.id
-        
         if self.values[0] == "Create Character":
             await interaction.response.send_modal(RegistrationModal())
-            
-        elif self.values[0] in ["Character Login", "Change Identity"]:
-            c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ? AND status = 'active'", (user_id,))
-            active_chars = c.fetchall()
-            if active_chars:
-                action_word = "تسجيل الدخول" if self.values[0] == "Character Login" else "تغيير الهوية إلى"
-                await interaction.response.send_message(f"اختر الشخصية المراد {action_word}:", view=LoginView(active_chars), ephemeral=True)
-            else:
-                await interaction.response.send_message("❌ ليس لديك شخصيات مقبولة بعد.", ephemeral=True)
-                
-        elif self.values[0] == "Character Logout":
-            await interaction.response.send_message("✅ تم تسجيل الخروج من الشخصية الحالية بنجاح.", ephemeral=True)
-            
         elif self.values[0] == "Show identity":
-            c.execute("SELECT identity_id, first_name, last_name, birthdate, birthplace, balance, status FROM players WHERE discord_id = ?", (user_id,))
+            c.execute("SELECT identity_id, first_name, last_name, birthdate, birthplace, balance FROM players WHERE discord_id = ?", (user_id,))
             players = c.fetchall()
             if players:
                 text = "هوياتك المسجلة:\n"
                 for idx, p in enumerate(players, 1):
-                    status_text = "مقبولة ✅" if p[6] == 'active' else "قيد المراجعة ⏳"
-                    text += f"\n**الشخصية {idx}:**\n- 🆔 الهوية: `{p[0]}`\n- 👤 الاسم: {p[1]} {p[2]}\n- 📅 المواليد: {p[3]}\n- 🌍 مكان الولادة: {p[4]}\n- 💰 الرصيد: {p[5]}\n- 📊 الحالة: {status_text}\n"
+                    text += f"\n**الشخصية {idx}:**\n- 🆔 الهوية: `{p[0]}`\n- 👤 الاسم: GD | {p[1]} {p[2]}\n- 📅 المواليد: {p[3]}\n- 💰 الرصيد: {p[5]}\n"
                 await interaction.response.send_message(text, ephemeral=True)
             else:
                 await interaction.response.send_message("❌ ليس لديك أي شخصيات مسجلة!", ephemeral=True)
@@ -354,62 +349,6 @@ async def character_command(ctx):
     embed = discord.Embed(title="Character Management", description="Character Creation", color=discord.Color.gold())
     embed.set_image(url=image_url)
     await ctx.send(embed=embed, view=CharacterView())
-
-class AdminSelectChar(discord.ui.Select):
-    def __init__(self, characters, action_type):
-        self.action_type = action_type
-        options = [discord.SelectOption(label=f"{p[1]} {p[2]} (هوية: {p[0]})", value=str(p[0])) for p in characters]
-        super().__init__(placeholder="اختر الشخصية المطلوبة...", options=options)
-
-    async def callback(self, interaction: discord.Interaction):
-        identity_id = int(self.values[0])
-        if self.action_type == "delete":
-            c.execute("DELETE FROM players WHERE identity_id = ?", (identity_id,))
-            conn.commit()
-            await interaction.response.send_message(f"🗑️ تم حذف الشخصية ذات الهوية (`{identity_id}`) بنجاح.", ephemeral=True)
-        elif self.action_type == "edit":
-            await interaction.response.send_modal(AdminEditModal(identity_id))
-
-class AdminCharView(discord.ui.View):
-    def __init__(self, characters, action_type):
-        super().__init__()
-        self.add_item(AdminSelectChar(characters, action_type))
-
-class AdminEditModal(discord.ui.Modal, title='تعديل بيانات الشخصية'):
-    first_name = discord.ui.TextInput(label='الاسم الأول الجديد', placeholder='أدخل الاسم الأول...')
-    last_name = discord.ui.TextInput(label='الاسم الثاني الجديد', placeholder='أدخل الاسم الثاني...')
-    birthplace = discord.ui.TextInput(label='مكان الولادة الجديد', placeholder='أدخل مكان الولادة...')
-    bio = discord.ui.TextInput(label='فكرة الشخصية الجديدة', style=discord.TextStyle.paragraph)
-
-    def __init__(self, identity_id):
-        super().__init__()
-        self.identity_id = identity_id
-
-    async def on_submit(self, interaction: discord.Interaction):
-        c.execute("UPDATE players SET first_name = ?, last_name = ?, birthplace = ?, bio = ? WHERE identity_id = ?", 
-                  (self.first_name.value, self.last_name.value, self.birthplace.value, self.bio.value, self.identity_id))
-        conn.commit()
-        await interaction.response.send_message(f"✅ تم تحديث بيانات الشخصية ذات الهوية (`{self.identity_id}`) بنجاح!", ephemeral=True)
-
-@bot.command(name="deletechar")
-@commands.has_permissions(administrator=True)
-async def deletechar_cmd(ctx, member: discord.Member):
-    c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (member.id,))
-    chars = c.fetchall()
-    if chars:
-        await ctx.send(f"اختر الشخصية التي تريد حذفها للعضو {member.mention}:", view=AdminCharView(chars, "delete"))
-    else:
-        await ctx.send("❌ هذا العضو ليس لديه أي شخصيات مسجلة.")
-
-@bot.command(name="editchar")
-@commands.has_permissions(administrator=True)
-async def editchar_cmd(ctx, member: discord.Member):
-    c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (member.id,))
-    chars = c.fetchall()
-    if chars:
-        await ctx.send(f"اختر الشخصية التي تريد تعديلها للعضو {member.mention}:", view=AdminCharView(chars, "edit"))
-    else:
-        await ctx.send("❌ هذا العضو ليس لديه أي شخصيات مسجلة.")
 
 @bot.command(name="امسح")
 @commands.has_permissions(administrator=True)
