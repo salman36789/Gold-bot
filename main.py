@@ -569,7 +569,7 @@ class AdminTripPanelView(discord.ui.View):
         await interaction.response.send_message("✅ تم إرسال إشعار التجديد بنجاح في روم الإشعارات.", ephemeral=True)
 
 
-@bot.command(name="panel")
+@bot.command(name="trip")
 async def trip_panel(ctx):
     if not has_trip_permission(ctx.author):
         return
@@ -623,3 +623,4 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
+ 
