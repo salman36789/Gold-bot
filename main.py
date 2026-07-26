@@ -56,6 +56,7 @@ IMAGE_URL = "https://cdn.discordapp.com/attachments/1530770297207263305/15310422
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
     try:
+        # مزامنة الأوامر فورياً (سيتم مزامنتها مع كافة السيرفرات التي يتواجد فيها البوت)
         synced = await bot.tree.sync()
         print(f"Synced {len(synced)} slash commands.")
     except Exception as e:
@@ -473,7 +474,6 @@ class CharacterView(discord.ui.View):
     def __init__(self, timeout=None):
         super().__init__(timeout=timeout)
 
-# نافذة إدخال تفاصيل الرحلة (الهوست، الآيدي، إلخ)
 class TripSetupModal(discord.ui.Modal, title='إنشاء وتثبيت لوحة الرحلة'):
     host_name = discord.ui.TextInput(label='اسم الهوست (Host Name)', placeholder='أدخل اسم الهوست...')
     host_id = discord.ui.TextInput(label='آيدي الهوست (Host ID)', placeholder='أدخل آيدي الهوست الديسكورد...')
