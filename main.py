@@ -41,7 +41,7 @@ async def on_ready():
     print(f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
         await setup_server_permissions(guild)
-    print("البوت يعمل بنجاح، وتم فصل أوامر الشخصيات والتزوير تماماً!")
+    print("Bot is online and running successfully!")
 
 async def setup_server_permissions(guild):
     inactive_role = discord.utils.get(guild.roles, name="Inactive")
@@ -76,7 +76,7 @@ async def on_member_join(member):
         if inactive_role:
             await member.add_roles(inactive_role)
     except Exception as e:
-        print(f"خطأ عند دخول العضو: {e}")
+        print(f"Error on member join: {e}")
 
 @bot.event
 async def on_message(message):
@@ -99,7 +99,7 @@ async def on_message(message):
                 
             await message.channel.send(f"✅ تم تفعيلك بنجاح يا {member.mention}! نورت السيرفر.", delete_after=5)
         except Exception as e:
-            print(f"خطأ في التفعيل التلقائي: {e}")
+            print(f"Error in auto-verify: {e}")
 
     await bot.process_commands(message)
 
@@ -184,7 +184,7 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             try:
                 await member.edit(nick=role_character_name)
             except Exception as nick_err:
-                print(f"ملاحظة: لم يتمكن البوت من تغيير النيك نيم: {nick_err}")
+                print(f"Note: Nickname error: {nick_err}")
 
             inactive_role = discord.utils.get(guild.roles, name="Inactive")
             identity_role = discord.utils.get(guild.roles, name="Identity")
@@ -208,7 +208,7 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             await setup_server_permissions(guild)
 
         except Exception as e:
-            print(f"خطأ في إعدادات الرتب والصلاحيات: {e}")
+            print(f"Error in roles/permissions: {e}")
 
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
@@ -263,7 +263,7 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
             try:
                 await member.edit(nick=new_full_name)
             except Exception as e:
-                print(f"ملاحظة النيك نيم: {e}")
+                print(f"Nickname note: {e}")
 
             old_role = discord.utils.get(guild.roles, name=self.old_full_name)
             if old_role:
@@ -273,7 +273,7 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
             await member.add_roles(new_role)
 
         except Exception as e:
-            print(f"خطأ في تعديل رتبة التزوير: {e}")
+            print(f"Error in forge role edit: {e}")
 
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
@@ -427,14 +427,12 @@ class ForgeButtonView(discord.ui.View):
         else:
             await interaction.response.send_message("❌ ليس لديك أي شخصيات مسجلة لتزويرها!", ephemeral=True)
 
-# أمر إدارة الشخصيات الأساسي (إنشاء، دخول، خروج، عرض)
 @bot.command(name="character")
 async def character_command(ctx):
     embed = discord.Embed(title="Character Management", description="Character Creation, Login & Logout System", color=discord.Color.gold())
     embed.set_image(url=IMAGE_URL)
     await ctx.send(embed=embed, view=CharacterView())
 
-# أمر مستقل تماماً لتزوير الهوية
 @bot.command(name="forge")
 async def forge_command(ctx):
     embed_forge = discord.Embed(title="Forgery System", description="اضغط على الزر أدناه لتزوير هوية شخصيتك:", color=discord.Color.dark_red())
@@ -454,4 +452,4 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
-، ذ، 
+
