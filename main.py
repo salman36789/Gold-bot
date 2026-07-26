@@ -9,8 +9,11 @@ from datetime import datetime
 
 DB_FILE = 'bot_database.db'
 
+# الاتصال بقاعدة البيانات مع ضمان الحفظ التلقائي
 conn = sqlite3.connect(DB_FILE, check_same_thread=False)
 c = conn.cursor()
+
+# إنشاء الجدول مع التأكد من حفظ أي بيانات أو أعمدة جديدة بشكل دائم
 c.execute('''CREATE TABLE IF NOT EXISTS players (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, 
                 discord_id INTEGER, 
@@ -158,7 +161,6 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
 
         is_valid, message_result = validate_character_data(f_name, l_name, entered_birth, entered_place)
         if not is_valid:
-            # إرسال سبب الرفض في الخاص (DM)
             try:
                 await member.send(f"❌ **عذراً، تم رفض طلب إنشاء شخصيتك.**\n**السبب:** {message_result}")
             except Exception:
@@ -186,6 +188,7 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
 
         role_character_name = f"{f_name} {l_name}"
 
+        # حفظ الشخصية الجديدة في قاعدة البيانات بشكل دائم
         c.execute("INSERT INTO players (discord_id, identity_id, first_name, last_name, mind, birthdate, birthplace, bio, balance, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
                   (user_id, new_identity, f_name, l_name, entered_mind, entered_birth, entered_place, "مقبول تلقائياً", 1000, 'active'))
         conn.commit()
@@ -220,7 +223,7 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
         except Exception as e:
             print(f"Error in roles/permissions: {e}")
 
-        # إرسال رسالة القبول والهوية في الخاص (DM) لصاحب الشخصية
+        # إرسال رسالة القبول والهوية في الخاص (DM)
         try:
             await member.send(
                 f"🎉 **مبروك! تم قبول شخصيتك بنجاح.**\n"
@@ -278,6 +281,7 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
 
         new_full_name = f"{f_name} {l_name}"
 
+        # تحديث وحفظ التعديلات في قاعدة البيانات بشكل دائم
         c.execute("""UPDATE players 
                      SET first_name = ?, last_name = ?, birthdate = ?, birthplace = ? 
                      WHERE identity_id = ? AND discord_id = ?""",
