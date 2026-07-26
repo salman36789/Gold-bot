@@ -34,7 +34,7 @@ TARGET_VERIFY_CHANNEL_ID = 1530770263598301225
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
-    print("البوت يعمل بنجاح، رومات الـ RP أصبحت مشاهدة فقط بعد إنشاء الشخصية!")
+    print("البوت يعمل بنجاح، وتم تأمين قسم الأقيام للإدارة فقط ورومات الـ RP مشاهدة فقط!")
 
 @bot.event
 async def on_member_join(member):
@@ -143,18 +143,22 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             if unverified_role and unverified_role in member.roles:
                 await member.remove_roles(unverified_role)
 
-            # ضبط الصلاحيات: مشاهدة فقط (Read Only) لأقسام الـ RP بعد إنشاء الشخصية
-            game_categories_names = ["gt | phone", "gt | command", "gt | on display", "gt | theft", "collection", "gt | justice team", "gold town public", "social"]
+            # معالجة الأقسام والصلاحيات
+            game_categories_names = [
+                "gt | on display", "gt | theft", "collection", "gt | justice team", 
+                "gt | phone", "gt | command", "gold town public", "social"
+            ]
+            
             for cat in guild.categories:
                 cat_name_lower = cat.name.lower()
                 
-                # أقسم الأقيام أو الإدارة تمنع الكتابة تماماً
-                if any(admin_word in cat_name_lower for admin_word in ["admin", "staff", "الإدارة", "الادارة", "أقيام", "اقيام", "games"]):
+                # قسم الأقيام أو الجيم: منع الكتابة تماماً عن الجميع عدا الإدارة
+                if "game" in cat_name_lower or "أقيام" in cat_name_lower or "اقيام" in cat_name_lower:
                     await cat.set_permissions(guild.default_role, send_messages=False)
                     if identity_role:
                         await cat.set_permissions(identity_role, send_messages=False)
                 
-                # أقسام الـ RP تصبح مشاهدة فقط (يستطيع رؤيتها ولا يستطيع الكتابة فيها)
+                # أقسام الـ RP (الظاهرة في الصور): مشاهدة فقط لرتبة Identity والهوية الشخصية وإخفاؤها عن Inactive
                 elif any(name in cat_name_lower for name in game_categories_names):
                     if inactive_role:
                         await cat.set_permissions(inactive_role, read_messages=False, send_messages=False)
@@ -175,7 +179,7 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
                 f"📅 **المواليد:** {self.birthdate.value}"
             )
             
-        await interaction.response.send_message(f"✅ تم إنشاء شخصيتك بنجاح! تم تغيير اسمك إلى **{character_name}** وإتاحة مشاهدة رومات الـ RP (للقراءة فقط).", ephemeral=True)
+        await interaction.response.send_message(f"✅ تم إنشاء شخصيتك بنجاح! تم إتاحة رؤية رومات الـ RP (للقراءة فقط).", ephemeral=True)
 
 class CharacterSelect(discord.ui.Select):
     def __init__(self):
@@ -225,4 +229,4 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
-
+ 
