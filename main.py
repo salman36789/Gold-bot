@@ -4,6 +4,7 @@ import sqlite3
 import os
 import random
 import asyncio
+import re
 
 DB_FILE = 'bot_database.db'
 
@@ -13,8 +14,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS players (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, 
                 discord_id INTEGER, 
                 identity_id INTEGER UNIQUE,
-                first_name TEXT,
-                last_name TEXT, 
+                psn_id TEXT,
                 birthdate TEXT, 
                 birthplace TEXT, 
                 bio TEXT, 
@@ -29,14 +29,13 @@ intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 LOG_CHANNEL_ID = 1530708101077012653
-TARGET_VERIFY_CHANNEL_ID = 1530770263598301225 # روم الأيدي المحدد
+TARGET_VERIFY_CHANNEL_ID = 1530770263598301225
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
-    print("البوت يعمل بنجاح ومبرمج على روم التفعيل المحدد!")
+    print("البوت يعمل بنجاح مع التحقق من أيدي سوني (PSN ID) وتعديل الرتبة تلقائياً!")
 
-# إعطاء رتبة Unverified تلقائياً عند دخول أي عضو جديد
 @bot.event
 async def on_member_join(member):
     guild = member.guild
@@ -47,13 +46,11 @@ async def on_member_join(member):
         except:
             pass
 
-# نظام التفعيل التلقائي عند الكتابة في الروم المخصص فقط
 @bot.event
 async def on_message(message):
     if message.author.bot:
         return
 
-    # التحقق من أن الرسالة أُرسلت في الروم المحدد للأيدي
     if message.channel.id == TARGET_VERIFY_CHANNEL_ID:
         try:
             await message.add_reaction("✅")
@@ -74,10 +71,14 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-# نافذة تسجيل الشخصية وتوليد رتبة GD | الزرقاء
-class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديدة'):
-    first_name = discord.ui.TextInput(label='الاسم الأول (بالإنجليزي)', placeholder='First Name...', min_length=2)
-    last_name = discord.ui.TextInput(label='الاسم الثاني (بالإنجليزي)', placeholder='Last Name...', min_length=2)
+# دالة للتحقق من صحة أيدي سوني (PSN ID Rules)
+def is_valid_psn_id(psn_id):
+شروط أيدي سوني: من 3 إلى 16 حرف، يبدأ بحرف، ويحتوي فقط على حروف، أرقام، _، -
+    pattern = r'^[a-zA-Z][a-zA-Z0-9_-]{2,15}$'
+    return bool(re.match(pattern, psn_id))
+
+class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديدة بربط سوني'):
+    psn_id = discord.ui.TextInput(label='أيدي السوني (PSN ID)', placeholder='مثال: Ahmed_KSA...', min_length=3, max_length=16)
     birthdate = discord.ui.TextInput(label='مواليد الشخصية', placeholder='مثال: 1998/05/12')
     birthplace = discord.ui.TextInput(label='مكان الولادة', placeholder='أدخل مكان الولادة...')
     bio = discord.ui.TextInput(label='فكرة الشخصية', style=discord.TextStyle.paragraph, placeholder='اكتب قصة شخصيتك هنا...')
@@ -85,6 +86,16 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
     async def on_submit(self, interaction: discord.Interaction):
         user_id = interaction.user.id
         guild = interaction.guild
+        entered_psn = self.psn_id.value.strip()
+
+        # 1. التحقق من صحة الأيدي في السوني
+        if not is_valid_psn_id(entered_psn):
+            await interaction.response.send_message(
+                "❌ **أيدي سوني (PSN ID) غير صحيح!**\n"
+                "يجب أن يتكون من 3 إلى 16 حرفاً، يبدأ بحرف إنجليزي، ولا يحتوي على مسافات أو رموز غريبة (مسموح بالشرطة السفلية `_` والشرطة `-`).",
+                ephemeral=True
+            )
+            return
         
         c.execute("SELECT COUNT(*) FROM players WHERE discord_id = ?", (user_id,))
         count = c.fetchone()[0]
@@ -99,14 +110,16 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             if not c.fetchone():
                 break
 
-        full_name_eng = f"GD | {self.first_name.value} {self.last_name.value}"
+        full_name_eng = f"GD | {entered_psn}"
 
-        c.execute("INSERT INTO players (discord_id, identity_id, first_name, last_name, birthdate, birthplace, bio, balance, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-                  (user_id, new_identity, self.first_name.value, self.last_name.value, self.birthdate.value, self.birthplace.value, self.bio.value, 1000, 'active'))
+        # 2. حفظ البيانات في قاعدة البيانات مع أيدي السوني
+        c.execute("INSERT INTO players (discord_id, identity_id, psn_id, birthdate, birthplace, bio, balance, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
+                  (user_id, new_identity, entered_psn, self.birthdate.value, self.birthplace.value, self.bio.value, 1000, 'active'))
         conn.commit()
         
         try:
-            blue_role = await guild.create_role(name=full_name_eng, color=discord.Color.blue(), reason="رتبة هوية اللاعب")
+            # 3. إنشاء رتبة الشخصية باسم أيدي السوني مباشرة
+            blue_role = await guild.create_role(name=full_name_eng, color=discord.Color.blue(), reason="رتبة هوية اللاعب برابط سوني")
             member = interaction.user
             await member.add_roles(blue_role)
             
@@ -128,19 +141,20 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
             await log_channel.send(
-                f"📇 **تم إنشاء هوية وتفعيل العضو وتحديث صلاحياته:** {interaction.user.mention}\n"
-                f"🆔 **رقم الهوية:** `{new_identity}`\n"
-                f"👤 **الاسم:** {full_name_eng}\n"
+                f"📇 **تم التحقق من سوني وإنشاء هوية جديدة:** {interaction.user.mention}\n"
+                f"🎮 **أيدي سوني (PSN ID):** `{entered_psn}`\n"
+                f"🆔 **رقم الهوية الداخلي:** `{new_identity}`\n"
+                f"👤 **اسم الرتبة:** {full_name_eng}\n"
                 f"📅 **المواليد:** {self.birthdate.value}"
             )
             
-        await interaction.response.send_message(f"✅ تم إنشاء شخصيتك بنجاح! رقم هويتك: **{new_identity}** وتم منحك رتبة الهوية الزرقاء وتفعيلك بنجاح.", ephemeral=True)
+        await interaction.response.send_message(f"✅ تم التحقق من أيدي سوني بنجاح وإنشاء شخصيتك باسم **{full_name_eng}**! رقم هويتك: **{new_identity}**.", ephemeral=True)
 
 class CharacterSelect(discord.ui.Select):
     def __init__(self):
         options = [
-            discord.SelectOption(label="Create Character", description="لإنشاء شخصية جديدة (بحد أقصى 3)"),
-            discord.SelectOption(label="Show identity", description="لعرض الهويات المسجلة")
+            discord.SelectOption(label="Create Character", description="لإنشاء شخصية جديدة بربط سوني (بحد أقصى 3)"),
+            discord.SelectOption(label="Show identity", description="لعرض الهويات المسجلة وأيديات السوني")
         ]
         super().__init__(placeholder="Choose an action you want to make", options=options)
 
@@ -149,12 +163,12 @@ class CharacterSelect(discord.ui.Select):
         if self.values[0] == "Create Character":
             await interaction.response.send_modal(RegistrationModal())
         elif self.values[0] == "Show identity":
-            c.execute("SELECT identity_id, first_name, last_name, birthdate, birthplace, balance FROM players WHERE discord_id = ?", (user_id,))
+            c.execute("SELECT identity_id, psn_id, birthdate, birthplace, balance FROM players WHERE discord_id = ?", (user_id,))
             players = c.fetchall()
             if players:
                 text = "هوياتك المسجلة:\n"
                 for idx, p in enumerate(players, 1):
-                    text += f"\n**الشخصية {idx}:**\n- 🆔 الهوية: `{p[0]}`\n- 👤 الاسم: GD | {p[1]} {p[2]}\n- 📅 المواليد: {p[3]}\n- 💰 الرصيد: {p[5]}\n"
+                    text += f"\n**الشخصية {idx}:**\n- 🆔 رقم الهوية: `{p[0]}`\n- 🎮 أيدي سوني: `GD | {p[1]}`\n- 📅 المواليد: {p[2]}\n- 💰 الرصيد: {p[4]}\n"
                 await interaction.response.send_message(text, ephemeral=True)
             else:
                 await interaction.response.send_message("❌ ليس لديك أي شخصيات مسجلة!", ephemeral=True)
