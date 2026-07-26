@@ -29,19 +29,35 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 LOG_CHANNEL_ID = 1530708101077012653
 
-# قائمة الرتب الجديدة باللغة الإنجليزية، الألوان، والبادئة GD |
-# يتم تحديد الاسم واللون (Hex Color) لكل رتبة
+# ترتيب الرتب من الأصغر إلى الأكبر (الأعلى سيكون في الأعلى برمجياً في السيرفر بناءً على القائمة أو الترتيب العكسي للإنشاء)
+# هنا قمنا بترتيبها تصاعدياً لتشمل 6 رتب لكل قسم (الصغرى، الوسطى، العليا) بالإضافة للقيادة
 ADMIN_ROLES_CONFIG = {
-    "GD | Leadership": discord.Color.red(),
-    "GD | High Management": discord.Color.gold(),
-    "GD | High Deputy": discord.Color.orange(),
-    "GD | High Officer": discord.Color.dark_gold(),
-    "GD | Middle Management": discord.Color.blue(),
-    "GD | Middle Deputy": discord.Color.blurple(),
-    "GD | Middle Officer": discord.Color.teal(),
-    "GD | Low Management": discord.Color.green(),
-    "GD | Low Deputy": discord.Color.dark_green(),
-    "GD | Low Officer": discord.Color.light_grey()
+    # قسم الإدارة الصغرى (6 رتب متدرجة من الأصغر للأكبر)
+    "GD | Low Tier 1": discord.Color.from_rgb(200, 230, 201),
+    "GD | Low Tier 2": discord.Color.from_rgb(165, 214, 167),
+    "GD | Low Tier 3": discord.Color.from_rgb(129, 199, 132),
+    "GD | Low Tier 4": discord.Color.from_rgb(102, 187, 106),
+    "GD | Low Tier 5": discord.Color.from_rgb(76, 175, 80),
+    "GD | Low Tier 6": discord.Color.from_rgb(56, 142, 60),
+    
+    # قسم الإدارة الوسطى (6 رتب متدرجة من الأصغر للأكبر)
+    "GD | Middle Tier 1": discord.Color.from_rgb(187, 222, 251),
+    "GD | Middle Tier 2": discord.Color.from_rgb(144, 202, 249),
+    "GD | Middle Tier 3": discord.Color.from_rgb(100, 181, 246),
+    "GD | Middle Tier 4": discord.Color.from_rgb(66, 165, 245),
+    "GD | Middle Tier 5": discord.Color.from_rgb(33, 150, 243),
+    "GD | Middle Tier 6": discord.Color.from_rgb(25, 118, 210),
+    
+    # قسم الإدارة العليا (6 رتب متدرجة من الأصغر للأكبر)
+    "GD | High Tier 1": discord.Color.from_rgb(255, 224, 178),
+    "GD | High Tier 2": discord.Color.from_rgb(255, 204, 128),
+    "GD | High Tier 3": discord.Color.from_rgb(255, 183, 77),
+    "GD | High Tier 4": discord.Color.from_rgb(255, 167, 38),
+    "GD | High Tier 5": discord.Color.from_rgb(255, 152, 0),
+    "GD | High Tier 6": discord.Color.from_rgb(245, 124, 0),
+    
+    # القيادة العليا للسيرفر
+    "GD | Leadership": discord.Color.red()
 }
 
 ADMIN_ROLES = list(ADMIN_ROLES_CONFIG.keys())
@@ -56,15 +72,15 @@ async def on_ready():
             existing_role = discord.utils.get(guild.roles, name=role_name)
             if existing_role:
                 try:
-                    await existing_role.delete(reason="تحديث الرتب الإدارية تلقائياً")
+                    await existing_role.delete(reason="تحديث الهيكل الإداري الجديد")
                 except Exception as e:
                     print(f"فشل حذف رتبة {role_name}: {e}")
 
         # إنشاء الرتب بالأسماء والألوان الجديدة
         for role_name, color in ADMIN_ROLES_CONFIG.items():
             try:
-                await guild.create_role(name=role_name, color=color, reason="إنشاء هيكل الرتب الإدارية الجديد")
-                print(f"تم إنشاء رتبة: {role_name} باللون المحدد")
+                await guild.create_role(name=role_name, color=color, reason="إنشاء الهيكل الإداري المتدرج الجديد")
+                print(f"تم إنشاء رتبة: {role_name}")
             except Exception as e:
                 print(f"فشل إنشاء رتبة {role_name}: {e}")
 
