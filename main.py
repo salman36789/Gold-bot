@@ -149,7 +149,6 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
     birthplace = discord.ui.TextInput(label='مكان الولادة (Pollito / Sandy / Los)', placeholder='أدخل مكان الولادة...')
 
     async def on_submit(self, interaction: discord.Interaction):
-        # منع خطأ تكرار الإرسال وتأخير الاستجابة
         await interaction.response.defer(ephemeral=True)
 
         user_id = interaction.user.id
@@ -189,6 +188,7 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             if not c.fetchone():
                 break
 
+        char_number = count + 1
         role_character_name = f"{f_name} {l_name}"
 
         c.execute("INSERT INTO players (discord_id, identity_id, first_name, last_name, birthdate, gender, birthplace, bio, balance, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
@@ -227,33 +227,29 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
         except Exception as e:
             print(f"Error in roles/permissions: {e}")
 
+        # بناء إمبد القبول المنسق تماماً مثل الصورة المطلوبة
+        embed_accepted = discord.Embed(title="Identity Accepted", color=discord.Color.teal())
+        embed_accepted.description = (
+            f"**Character Number |** `{char_number}`\n\n"
+            f"🪪 **First Name |** `{f_name}`\n\n"
+            f"🪪 **Last Name |** `{l_name}`\n\n"
+            f"📅 **Birthday |** `{entered_birth}`\n\n"
+            f"🪪 **Gender |** `{entered_gender}`\n\n"
+            f"📍 **Birth Place |** `{entered_place}`\n\n"
+            f"🪪 **ID Number |** `{new_identity}`"
+        )
+        embed_accepted.set_thumbnail(url=IMAGE_URL)
+        embed_accepted.set_image(url=IMAGE_URL)
+        embed_accepted.set_footer(text="© Effect Kings System | 2026")
+
         try:
-            await member.send(
-                f"🎉 **مبروك! تم قبول شخصيتك بنجاح.**\n"
-                f"👤 **First Name |** `{f_name}`\n"
-                f"👤 **Last Name |** `{l_name}`"
-            )
-            await member.send(
-                f"📋 **تفاصيل الهوية الإضافية:**\n"
-                f"📅 **Birthday |** `{entered_birth}`\n"
-                f"⚧️ **Gender |** `{entered_gender}`\n"
-                f"📍 **Birth Place |** `{entered_place}`\n"
-                f"🆔 **ID Number |** `{new_identity}`"
-            )
+            await member.send(embed=embed_accepted)
         except Exception:
             pass
 
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
-            await log_channel.send(
-                f"🎉 **Identity Accepted:** {interaction.user.mention}\n"
-                f"👤 **First Name |** `{f_name}`\n"
-                f"👤 **Last Name |** `{l_name}`\n"
-                f"📅 **Birthday |** `{entered_birth}`\n"
-                f"⚧️ **Gender |** `{entered_gender}`\n"
-                f"📍 **Birth Place |** `{entered_place}`\n"
-                f"🆔 **ID Number |** `{new_identity}`"
-            )
+            await log_channel.send(content=f"🎉 **Identity Accepted:** {interaction.user.mention}", embed=embed_accepted)
             
         await interaction.followup.send(f"✅ مبروك! اجتازت شخصيتك كافة الشروط وتم **قبولها تلقائياً** وإرسال تفاصيل الهوية إلى رسائلك الخاصة (DM).", ephemeral=True)
 
