@@ -4,9 +4,7 @@ import sqlite3
 import os
 import random
 
-DB_FILE = 'rp_system.db'
-if os.path.exists(DB_FILE) and os.path.getsize(DB_FILE) == 0:
-    os.remove(DB_FILE)
+DB_FILE = 'bot_database.db'
 
 conn = sqlite3.connect(DB_FILE, check_same_thread=False)
 c = conn.cursor()
@@ -30,8 +28,38 @@ intents.members = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 LOG_CHANNEL_ID = 1530708101077012653
-ADMIN_ROLE_NAME = "الإدارة"
+
+# قائمة الرتب الهرمية والمتدرجة لجميع الأقسام الإدارية والقيادية
+ADMIN_ROLES = [
+    "القيادة", 
+    # الإدارة العليا وتفريعاتها
+    "الإدارة العليا", 
+    "نائب الإدارة العليا", 
+    "مشرف الإدارة العليا",
+    # الإدارة الوسطى وتفريعاتها
+    "الإدارة الوسطى", 
+    "نائب الإدارة الوسطى", 
+    "مشرف الإدارة الوسطى",
+    # الإدارة الصغرى وتفريعاتها
+    "الإدارة الصغرى", 
+    "نائب الإدارة الصغرى", 
+    "مساعد إداري صغرى", 
+    "مشرف إداري صغرى"
+]
 FORGER_ROLE_NAME = "Forged"
+
+@bot.event
+async def on_ready():
+    print(f'Logged in as {bot.user.name}')
+    for guild in bot.guilds:
+        for role_name in ADMIN_ROLES:
+            existing_role = discord.utils.get(guild.roles, name=role_name)
+            if not existing_role:
+                try:
+                    await guild.create_role(name=role_name, reason="إنشاء رتب الإدارة والهرم الإداري تلقائياً بواسطة البوت")
+                    print(f"تم إنشاء رتبة: {role_name} في سيرفر: {guild.name}")
+                except Exception as e:
+                    print(f"فشل إنشاء رتبة {role_name}: {e}")
 
 class RejectModal(discord.ui.Modal, title='سبب الرفض'):
     reason = discord.ui.TextInput(label='السبب', style=discord.TextStyle.paragraph)
@@ -59,7 +87,7 @@ class AdminControlView(discord.ui.View):
         self.original_message = original_message
         
     def check_admin(self, interaction: discord.Interaction):
-        if any(role.name == ADMIN_ROLE_NAME for role in interaction.user.roles) or interaction.user.guild_permissions.administrator:
+        if any(role.name in ADMIN_ROLES for role in interaction.user.roles) or interaction.user.guild_permissions.administrator:
             return True
         return False
 
@@ -255,7 +283,7 @@ class AdminEditModal(discord.ui.Modal, title='تعديل بيانات الشخص
         await interaction.response.send_message(f"✅ تم تحديث بيانات الشخصية ذات الهوية (`{self.identity_id}`) بنجاح!", ephemeral=True)
 
 @bot.command(name="deletechar")
-@commands.has_any_role(ADMIN_ROLE_NAME)
+@commands.has_any_role(*ADMIN_ROLES)
 async def deletechar_cmd(ctx, member: discord.Member):
     c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (member.id,))
     chars = c.fetchall()
@@ -265,7 +293,7 @@ async def deletechar_cmd(ctx, member: discord.Member):
         await ctx.send("❌ هذا العضو ليس لديه أي شخصيات مسجلة.")
 
 @bot.command(name="editchar")
-@commands.has_any_role(ADMIN_ROLE_NAME)
+@commands.has_any_role(*ADMIN_ROLES)
 async def editchar_cmd(ctx, member: discord.Member):
     c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (member.id,))
     chars = c.fetchall()
@@ -280,7 +308,7 @@ async def forgeid_cmd(ctx):
     await ctx.send(f"🎭 أهلاً بك يا مزور الهويات ({ctx.author.mention}). تم تفعيل وضع التزوير بنجاح.")
 
 @bot.command(name="امسح")
-@commands.has_any_role(ADMIN_ROLE_NAME)
+@commands.has_any_role(*ADMIN_ROLES)
 async def clear_messages(ctx, amount: int = 10):
     await ctx.channel.purge(limit=amount + 1)
     msg = await ctx.send(f"🧹 تم حذف {amount} رسالة بنجاح.")
@@ -291,4 +319,4 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
-
+ 
