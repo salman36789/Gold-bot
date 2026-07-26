@@ -9,19 +9,18 @@ from datetime import datetime
 
 DB_FILE = 'bot_database.db'
 
-# الاتصال بقاعدة البيانات مع ضمان الحفظ التلقائي
 conn = sqlite3.connect(DB_FILE, check_same_thread=False)
 c = conn.cursor()
 
-# إنشاء الجدول مع التأكد من حفظ أي بيانات أو أعمدة جديدة بشكل دائم
+# إضافة حقل الجنس (gender) إلى جدول قاعدة البيانات
 c.execute('''CREATE TABLE IF NOT EXISTS players (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, 
                 discord_id INTEGER, 
                 identity_id INTEGER UNIQUE,
                 first_name TEXT,
                 last_name TEXT,
-                mind TEXT,
                 birthdate TEXT, 
+                gender TEXT,
                 birthplace TEXT, 
                 bio TEXT, 
                 balance INTEGER, 
@@ -106,14 +105,12 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-def validate_character_data(first_name, last_name, birthdate_str, birthplace):
+def validate_character_data(first_name, last_name, birthdate_str, gender, birthplace):
     if re.search(r'[\u0600-\u06FF]', first_name) or re.search(r'[\u0600-\u06FF]', last_name):
         return False, "❌ تم الرفض: ممنوع كتابة الاسم باللغة العربية (يجب أن يكون بالإنجليزية)."
     
     if ' ' in first_name.strip():
         return False, "❌ تم الرفض: الاسم الأول يحتوي على مسافات، يجب أن يكون اسماً واحداً."
-    if ' ' in last_name.strip():
-        return False, "❌ تم الرفض: الاسم الثاني يحتوي على مسافات، يجب أن يكون اسماً واحداً."
 
     date_pattern = r'^(0?[1-9]|[12][0-9]|3[01])/(0?[1-9]|1[012])/([0-9]{4})$'
     if not re.match(date_pattern, birthdate_str):
@@ -134,19 +131,23 @@ def validate_character_data(first_name, last_name, birthdate_str, birthplace):
     if age > 60:
         return False, f"❌ تم الرفض: عمرك ({age} سنة) أكبر من الحد المسموح به (60 سنة وتحت)."
 
-    allowed_birthplaces = ["بوليتو", "ساندي", "لوس"]
-    clean_birthplace = birthplace.strip()
+    clean_gender = gender.strip().capitalize()
+    if clean_gender not in ["Male", "Female"]:
+        return False, "❌ تم الرفض: الجنس غير صحيح. يجب كتابة `Male` أو `Female`."
+
+    allowed_birthplaces = ["Pollito", "Sandy", "Los"]
+    clean_birthplace = birthplace.strip().capitalize()
     if clean_birthplace not in allowed_birthplaces:
-        return False, "❌ تم الرفض: مكان الولادة غير مسموح به. الأماكن المسموحة فقط هي: (بوليتو، ساندي، لوس)."
+        return False, "❌ تم الرفض: مكان الولادة غير مسموح به. الأماكن المسموحة فقط هي: (Pollito, Sandy, Los)."
 
     return True, "تم بنجاح"
 
 class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديدة'):
-    first_name = discord.ui.TextInput(label='الاسم الأول (اسم واحد إنجليزي بدون مسافات)', placeholder='مثال: John...')
-    last_name = discord.ui.TextInput(label='الاسم الثاني (اسم واحد إنجليزي بدون مسافات)', placeholder='مثال: Wick...')
+    first_name = discord.ui.TextInput(label='الاسم الأول (إنجليزي بدون مسافات)', placeholder='مثال: Jax...')
+    last_name = discord.ui.TextInput(label='الاسم الثاني / العائلة (إنجليزي مسموح مسافات)', placeholder='مثال: Al Mutairi...')
     birthdate = discord.ui.TextInput(label='مواليد الشخصية (يوم/شهر/سنة)', placeholder='مثال: 1/1/1999')
-    birthplace = discord.ui.TextInput(label='مكان الولادة (بوليتو / ساندي / لوس)', placeholder='أدخل مكان الولادة...')
-    mind = discord.ui.TextInput(label='فكر الشخصية', placeholder='أدخل فكر الشخصية...')
+    gender = discord.ui.TextInput(label='الجنس (Male / Female)', placeholder='أدخل Male أو Female...')
+    birthplace = discord.ui.TextInput(label='مكان الولادة (Pollito / Sandy / Los)', placeholder='أدخل مكان الولادة...')
 
     async def on_submit(self, interaction: discord.Interaction):
         user_id = interaction.user.id
@@ -156,10 +157,10 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
         f_name = self.first_name.value.strip()
         l_name = self.last_name.value.strip()
         entered_birth = self.birthdate.value.strip()
-        entered_place = self.birthplace.value.strip()
-        entered_mind = self.mind.value.strip()
+        entered_gender = self.gender.value.strip().capitalize()
+        entered_place = self.birthplace.value.strip().capitalize()
 
-        is_valid, message_result = validate_character_data(f_name, l_name, entered_birth, entered_place)
+        is_valid, message_result = validate_character_data(f_name, l_name, entered_birth, entered_gender, entered_place)
         if not is_valid:
             try:
                 await member.send(f"❌ **عذراً، تم رفض طلب إنشاء شخصيتك.**\n**السبب:** {message_result}")
@@ -188,9 +189,9 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
 
         role_character_name = f"{f_name} {l_name}"
 
-        # حفظ الشخصية الجديدة في قاعدة البيانات بشكل دائم
-        c.execute("INSERT INTO players (discord_id, identity_id, first_name, last_name, mind, birthdate, birthplace, bio, balance, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-                  (user_id, new_identity, f_name, l_name, entered_mind, entered_birth, entered_place, "مقبول تلقائياً", 1000, 'active'))
+        # حفظ البيانات بما فيها الجنس مكان الولادة الجديد
+        c.execute("INSERT INTO players (discord_id, identity_id, first_name, last_name, birthdate, gender, birthplace, bio, balance, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+                  (user_id, new_identity, f_name, l_name, entered_birth, entered_gender, entered_place, "مقبول تلقائياً", 1000, 'active'))
         conn.commit()
         
         try:
@@ -223,15 +224,16 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
         except Exception as e:
             print(f"Error in roles/permissions: {e}")
 
-        # إرسال رسالة القبول والهوية في الخاص (DM)
+        # إرسال رسالة القبول والهوية في الخاص (DM) مع الجنس
         try:
             await member.send(
                 f"🎉 **مبروك! تم قبول شخصيتك بنجاح.**\n"
-                f"👤 **اسم الشخصية:** `{role_character_name}`\n"
-                f"🆔 **رقم الهوية:** `{new_identity}`\n"
-                f"🧠 **فكر الشخصية:** `{entered_mind}`\n"
-                f"📅 **المواليد:** `{entered_birth}`\n"
-                f"📍 **مكان الولادة:** `{entered_place}`"
+                f"👤 **First Name |** `{f_name}`\n"
+                f"👤 **Last Name |** `{l_name}`\n"
+                f"📅 **Birthday |** `{entered_birth}`\n"
+                f"⚧️ **Gender |** `{entered_gender}`\n"
+                f"📍 **Birth Place |** `{entered_place}`\n"
+                f"🆔 **ID Number |** `{new_identity}`"
             )
         except Exception:
             pass
@@ -239,21 +241,23 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
             await log_channel.send(
-                f"🎉 **تم قبول وإنشاء شخصية جديدة تلقائياً:** {interaction.user.mention}\n"
-                f"👤 **اسم الشخصية (الرول):** `{role_character_name}`\n"
-                f"🧠 **فكر الشخصية:** `{entered_mind}`\n"
-                f"🆔 **رقم الهوية:** `{new_identity}`\n"
-                f"📅 **المواليد:** `{entered_birth}`\n"
-                f"📍 **مكان الولادة:** `{entered_place}`"
+                f"🎉 **Identity Accepted:** {interaction.user.mention}\n"
+                f"👤 **First Name |** `{f_name}`\n"
+                f"👤 **Last Name |** `{l_name}`\n"
+                f"📅 **Birthday |** `{entered_birth}`\n"
+                f"⚧️ **Gender |** `{entered_gender}`\n"
+                f"📍 **Birth Place |** `{entered_place}`\n"
+                f"🆔 **ID Number |** `{new_identity}`"
             )
             
         await interaction.response.send_message(f"✅ مبروك! اجتازت شخصيتك كافة الشروط وتم **قبولها تلقائياً** وإرسال تفاصيل الهوية إلى رسائلك الخاصة (DM).", ephemeral=True)
 
 class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
-    first_name = discord.ui.TextInput(label='الاسم الأول الجديد (إنجليزي)', placeholder='مثال: John...')
-    last_name = discord.ui.TextInput(label='الاسم الثاني الجديد (إنجليزي)', placeholder='مثال: Wick...')
+    first_name = discord.ui.TextInput(label='الاسم الأول الجديد (إنجليزي)', placeholder='مثال: Jax...')
+    last_name = discord.ui.TextInput(label='الاسم الثاني الجديد (مسموح مسافات)', placeholder='مثال: Al Mutairi...')
     birthdate = discord.ui.TextInput(label='مواليد الشخصية الجديدة (يوم/شهر/سنة)', placeholder='مثال: 1/1/1999')
-    birthplace = discord.ui.TextInput(label='مكان الولادة (بوليتو / ساندي / لوس)', placeholder='أدخل مكان الولادة...')
+    gender = discord.ui.TextInput(label='الجنس (Male / Female)', placeholder='أدخل Male أو Female...')
+    birthplace = discord.ui.TextInput(label='مكان الولادة (Pollito / Sandy / Los)', placeholder='أدخل مكان الولادة...')
 
     def __init__(self, identity_id, old_full_name):
         super().__init__()
@@ -268,9 +272,10 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
         f_name = self.first_name.value.strip()
         l_name = self.last_name.value.strip()
         entered_birth = self.birthdate.value.strip()
-        entered_place = self.birthplace.value.strip()
+        entered_gender = self.gender.value.strip().capitalize()
+        entered_place = self.birthplace.value.strip().capitalize()
 
-        is_valid, message_result = validate_character_data(f_name, l_name, entered_birth, entered_place)
+        is_valid, message_result = validate_character_data(f_name, l_name, entered_birth, entered_gender, entered_place)
         if not is_valid:
             try:
                 await member.send(f"❌ **عذراً، فشلت عملية تزوير الهوية.**\n**السبب:** {message_result}")
@@ -281,11 +286,10 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
 
         new_full_name = f"{f_name} {l_name}"
 
-        # تحديث وحفظ التعديلات في قاعدة البيانات بشكل دائم
         c.execute("""UPDATE players 
-                     SET first_name = ?, last_name = ?, birthdate = ?, birthplace = ? 
+                     SET first_name = ?, last_name = ?, birthdate = ?, gender = ?, birthplace = ? 
                      WHERE identity_id = ? AND discord_id = ?""",
-                  (f_name, l_name, entered_birth, entered_place, self.identity_id, user_id))
+                  (f_name, l_name, entered_birth, entered_gender, entered_place, self.identity_id, user_id))
         conn.commit()
 
         try:
@@ -305,7 +309,7 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
             print(f"Error in forge role edit: {e}")
 
         try:
-            await member.send(f"⚠️ **تم تزوير وتحديث هويتك بنجاح!**\n🆔 رقم الهوية: `{self.identity_id}`\n👤 الاسم الجديد: `{new_full_name}`")
+            await member.send(f"⚠️ **تم تزوير وتحديث هويتك بنجاح!**\n🆔 رقم الهوية: `{self.identity_id}`\n👤 الاسم الجديد: `{new_full_name}`\n⚧️ الجنس: `{entered_gender}`")
         except Exception:
             pass
 
@@ -431,12 +435,13 @@ class CharacterSelect(discord.ui.Select):
             else:
                 await interaction.response.send_message("❌ ليس لديك شخصيات مسجلة!", ephemeral=True)
         elif self.values[0] == "Show identity":
-            c.execute("SELECT identity_id, first_name, last_name, mind, birthdate, birthplace, balance FROM players WHERE discord_id = ?", (user_id,))
+            # عرض الهويات مع الجنس
+            c.execute("SELECT identity_id, first_name, last_name, birthdate, gender, birthplace, balance FROM players WHERE discord_id = ?", (user_id,))
             players = c.fetchall()
             if players:
                 text = "هوياتك المسجلة:\n"
                 for idx, p in enumerate(players, 1):
-                    text += f"\n**الشخصية {idx}:**\n- 👤 الاسم: `{p[1]} {p[2]}`\n- 🆔 رقم الهوية: `{p[0]}`\n- 🧠 فكر الشخصية: `{p[3]}`\n- 📅 المواليد: `{p[4]}`\n- 📍 مكان الولادة: `{p[5]}`\n- 💰 الرصيد: `{p[6]}`\n"
+                    text += f"\n**الشخصية {idx}:**\n- 👤 الاسم: `{p[1]} {p[2]}`\n- 🆔 رقم الهوية: `{p[0]}`\n- 📅 المواليد: `{p[3]}`\n- ⚧️ الجنس: `{p[4]}`\n- 📍 مكان الولادة: `{p[5]}`\n- 💰 الرصيد: `{p[6]}`\n"
                 await interaction.response.send_message(text, ephemeral=True)
             else:
                 await interaction.response.send_message("❌ ليس لديك أي شخصيات مسجلة!", ephemeral=True)
@@ -445,20 +450,6 @@ class CharacterView(discord.ui.View):
     def __init__(self):
         super().__init__()
         self.add_item(CharacterSelect())
-
-class ForgeButtonView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
-
-    @discord.ui.button(label="تزوير هوية", style=discord.ButtonStyle.danger, custom_id="forge_identity_button")
-    async def forge_button_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
-        user_id = interaction.user.id
-        c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (user_id,))
-        players = c.fetchall()
-        if players:
-            await interaction.response.send_message("اختر الشخصية التي تريد تزوير بياناتها من القائمة أدناه:", view=ForgeSelectView(players), ephemeral=True)
-        else:
-            await interaction.response.send_message("❌ ليس لديك أي شخصيات مسجلة لتزويرها!", ephemeral=True)
 
 @bot.command(name="character")
 async def character_command(ctx):
