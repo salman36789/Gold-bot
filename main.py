@@ -419,23 +419,26 @@ class CharacterSelect(discord.ui.Select):
         super().__init__(placeholder="Choose an action you want to make", options=options)
 
     async def callback(self, interaction: discord.Interaction):
+        # منع خطأ التفاعل المزدوج عبر تأكيد الاستجابة فوراً بأمان
+        await interaction.response.defer(ephemeral=True)
+        
         user_id = interaction.user.id
         if self.values[0] == "Create Character":
-            await interaction.response.send_modal(RegistrationModal())
+            await interaction.followup.send_modal(RegistrationModal())
         elif self.values[0] == "Login":
             c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (user_id,))
             players = c.fetchall()
             if players:
-                await interaction.response.send_message("اختر الشخصية لتسجيل الدخول:", view=LoginSelectView(players), ephemeral=True)
+                await interaction.followup.send("اختر الشخصية لتسجيل الدخول:", view=LoginSelectView(players), ephemeral=True)
             else:
-                await interaction.response.send_message("❌ ليس لديك أي شخصيات مسجلة لتسجيل الدخول بها!", ephemeral=True)
+                await interaction.followup.send("❌ ليس لديك أي شخصيات مسجلة لتسجيل الدخول بها!", ephemeral=True)
         elif self.values[0] == "Logout":
             c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (user_id,))
             players = c.fetchall()
             if players:
-                await interaction.response.send_message("اختر الشخصية لتسجيل الخروج منها:", view=LogoutSelectView(players), ephemeral=True)
+                await interaction.followup.send("اختر الشخصية لتسجيل الخروج منها:", view=LogoutSelectView(players), ephemeral=True)
             else:
-                await interaction.response.send_message("❌ ليس لديك شخصيات مسجلة!", ephemeral=True)
+                await interaction.followup.send("❌ ليس لديك شخصيات مسجلة!", ephemeral=True)
         elif self.values[0] == "Show identity":
             c.execute("SELECT identity_id, first_name, last_name, birthdate, gender, birthplace, balance FROM players WHERE discord_id = ?", (user_id,))
             players = c.fetchall()
@@ -443,14 +446,13 @@ class CharacterSelect(discord.ui.Select):
                 text = "هوياتك المسجلة:\n"
                 for idx, p in enumerate(players, 1):
                     text += f"\n**الشخصية {idx}:**\n- 👤 الاسم: `{p[1]} {p[2]}`\n- 🆔 رقم الهوية: `{p[0]}`\n- 📅 المواليد: `{p[3]}`\n- ⚧️ الجنس: `{p[4]}`\n- 📍 مكان الولادة: `{p[5]}`\n- 💰 الرصيد: `{p[6]}`\n"
-                await interaction.response.send_message(text, ephemeral=True)
+                await interaction.followup.send(text, ephemeral=True)
             else:
-                await interaction.response.send_message("❌ ليس لديك أي شخصيات مسجلة!", ephemeral=True)
+                await interaction.followup.send("❌ ليس لديك أي شخصيات مسجلة!", ephemeral=True)
 
 class CharacterView(discord.ui.View):
     def __init__(self):
-        super().__init__()
-        self.add_item(CharacterSelect())
+        super().__init__(timeout=None) # منع انتهاء صلاحية الأزرار
 
 @bot.command(name="character")
 async def character_command(ctx):
@@ -461,7 +463,10 @@ async def character_command(ctx):
         
     embed = discord.Embed(title="Character Management", description="Character Creation, Login & Logout System", color=discord.Color.gold())
     embed.set_image(url=IMAGE_URL)
-    await ctx.send(embed=embed, view=CharacterView())
+    
+    view = CharacterView()
+    view.add_item(CharacterSelect())
+    await ctx.send(embed=embed, view=view)
 
 @bot.command(name="forge")
 async def forge_command(ctx):
