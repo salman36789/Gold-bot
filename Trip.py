@@ -3,7 +3,11 @@ from discord.ext import commands
 import os
 import asyncio
 
-bot = commands.Bot(command_prefix="!", intents=discord.Intents.all(), help_command=None)
+intents = discord.Intents.default()
+intents.message_content = True
+intents.members = True
+
+bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
 TRIPS_CHANNEL_ID = 1530770307357343895
 NOTIFICATIONS_CHANNEL_ID = 1530770304056557751
@@ -150,3 +154,4 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
+ 
