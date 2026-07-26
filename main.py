@@ -419,13 +419,17 @@ class CharacterSelect(discord.ui.Select):
         super().__init__(placeholder="Choose an action you want to make", options=options)
 
     async def callback(self, interaction: discord.Interaction):
-        # منع خطأ التفاعل المزدوج عبر تأكيد الاستجابة فوراً بأمان
-        await interaction.response.defer(ephemeral=True)
-        
         user_id = interaction.user.id
+        
+        # إذا اختار إنشاء شخصية، يجب إرسال المودال فوراً بدون استخدام defer لمنع التكرار وخطأ التفاعل
         if self.values[0] == "Create Character":
-            await interaction.followup.send_modal(RegistrationModal())
-        elif self.values[0] == "Login":
+            await interaction.response.send_modal(RegistrationModal())
+            return
+
+        # لبقية الخيارات، نقوم بعمل defer ثم followup لتجنب أي تعليق أو تكرار
+        await interaction.response.defer(ephemeral=True)
+
+        if self.values[0] == "Login":
             c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (user_id,))
             players = c.fetchall()
             if players:
@@ -452,7 +456,7 @@ class CharacterSelect(discord.ui.Select):
 
 class CharacterView(discord.ui.View):
     def __init__(self):
-        super().__init__(timeout=None) # منع انتهاء صلاحية الأزرار
+        super().__init__(timeout=None) # منع انتهاء صلاحية القائمة
 
 @bot.command(name="character")
 async def character_command(ctx):
