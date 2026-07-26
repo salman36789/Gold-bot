@@ -31,53 +31,52 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 LOG_CHANNEL_ID = 1530708101077012653
 
-# متغيرات حماية صارمة لمنع التكرار نهائياً
 is_building = False
 last_build_time = 0
 
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
-    print("البوت جاهز!")
+    print("البوت جاهز تماماً!")
 
 @bot.command(name="build")
 @commands.has_permissions(administrator=True)
 async def build_server(ctx):
     global is_building, last_build_time
-    
     current_time = time.time()
     
-    # حماية ضد التكرار الفوري لو البوت شغال بنسختين أو صار دبل كليك
-    if is_building or (current_time - last_build_time < 10):
+    if is_building or (current_time - last_build_time < 15):
         return
 
     is_building = True
     last_build_time = current_time
     
-    # إرسال رسالة واحدة فقط وضمان عدم تكرارها
-    await ctx.send("🔄 جاري تنظيف السيرفر وإعادة بناء الأقسام والرومات... انتظر قليلاً.")
+    await ctx.send("🔄 جاري فرمتة وتنظيف السيرفر بالكامل وإعادة بناء الأقسام بدقة... انتظر حتى يكتمل.")
     
     try:
         guild = ctx.guild
-        print(f"--- بدء عملية بناء السيرفر: {guild.name} ---")
+        print(f"--- بدء عملية الفرمتة والبناء للسيرفر: {guild.name} ---")
         
-        # 1. حذف الرومات القديمة
+        # 1. حذف كافة الرومات أولاً مع التأكد التام
         for channel in list(guild.channels):
             try:
                 await channel.delete()
-                await asyncio.sleep(0.3)
-            except:
-                pass
+                await asyncio.sleep(0.6)
+            except Exception as e:
+                print(f"خطأ في حذف روم: {e}")
                 
-        # 2. حذف الأقسام القديمة
+        # 2. حذف كافة الأقسام مع التأكد التام
         for category in list(guild.categories):
             try:
                 await category.delete()
-                await asyncio.sleep(0.3)
-            except:
-                pass
+                await asyncio.sleep(0.6)
+            except Exception as e:
+                print(f"خطأ في حذف قسم: {e}")
 
-        # 3. الهيكل المرتب الجديد
+        # انتظار قصير لضمان استقرار السيرفر من جهة ديسكورد
+        await asyncio.sleep(2)
+
+        # 3. الهيكل الجديد المرتب (بدون أي تكرار بالأسماء)
         structure = {
             "Gold Town | Rules": [
                 ("🟥 ┃ rules", "text"),
@@ -150,12 +149,12 @@ async def build_server(ctx):
             ]
         }
 
-        # 4. الإنشاء المنظم
+        # 4. بناء الأقسام والرومات الجديدة بمسافات أمان عالية
         for category_name, channels in structure.items():
             try:
                 category = await guild.create_category(category_name)
-                await asyncio.sleep(0.6) 
-            except:
+                await asyncio.sleep(1.0) 
+            except Exception as e:
                 continue
 
             for ch_name, ch_type in channels:
@@ -164,11 +163,11 @@ async def build_server(ctx):
                         await guild.create_text_channel(ch_name, category=category)
                     elif ch_type == "voice":
                         await guild.create_voice_channel(ch_name, category=category)
-                    await asyncio.sleep(0.4)
-                except:
+                    await asyncio.sleep(0.6)
+                except Exception as e:
                     pass
 
-        print("✅ اكتمل بناء السيرفر بنجاح تام!")
+        print("✅ تم فرمتة وبناء السيرفر بالكامل بنجاح ودون أي تكرار!")
     
     finally:
         is_building = False
@@ -424,4 +423,4 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
-
+ 
