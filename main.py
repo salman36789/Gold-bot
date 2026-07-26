@@ -33,9 +33,9 @@ LOG_CHANNEL_ID = 1530708101077012653
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
-        print(f"جاري حذف الرومات القديمة بالكامل وإعادة بناء Gold Town في سيرفر: {guild.name}")
+        print(f"جاري حذف الرومات القديمة وإعادة بناء هيكل GT في سيرفر: {guild.name}")
         
-        # 1. حذف جميع الرومات والأقسام الموجودة في السيرفر حالياً
+        # 1. حذف جميع الرومات والأقسام القديمة
         for channel in guild.channels:
             try:
                 await channel.delete()
@@ -48,49 +48,44 @@ async def on_ready():
             except Exception as e:
                 print(f"فشل حذف القسم {category.name}: {e}")
 
-        # 2. هيكل الأقسام والرومات الجديدة (بدون أي أقفال وبدون تكرار)
+        # 2. الهيكل الجديد مع تغيير NS إلى GT (نصية وصوتية)
         structure = {
-            "Gold Town | Rules": [
-                ("🟥 ┃ rules", False),
-                ("📜 ┃ new-rules", False),
-                ("🔗 ┃ pinned", False)
+            "GT | Phone": [
+                ("📄 ┃ News", "text", False),
+                ("📱 ┃ Phone", "text", False),
+                ("📱 ┃ X", "text", False),
+                ("📱 ┃ X-Video", "text", False)
             ],
-            "Gold Town | Ads": [
-                ("📢 ┃ announcement", False),
-                ("👷 ┃ updates", False),
-                ("📄 ┃ merges", False),
-                ("🔍 ┃ hints", False),
-                ("🔮 ┃ boosters", False),
-                ("🔗 ┃ partners", False)
+            "GT | Command": [
+                ("⚙️ ┃ Command", "text", False),
+                ("🎒 ┃ Inventory", "text", False),
+                ("🏪 ┃ Shops", "text", False),
+                ("🏦 ┃ Bank", "text", False),
+                ("🏥 ┃ Hospital", "text", False)
             ],
-            "GT | Rooms": [
-                ("💬 ┃ general-chat", False)
+            "GT | On display": [
+                ("🏠 ┃ Real-Estate", "text", False),
+                ("🚗 ┃ Car-Showroom", "text", False)
             ],
-            "GT | Support": [
-                ("📧 ┃ tickets", False),
-                ("❗ ┃ support-chat", False)
+            "GT | Theft": [
+                ("📜 ┃ Robbery-Rules", "text", False),
+                ("🚨 ┃ Reports", "text", False)
             ],
-            "GT | Submit Staff": [
-                ("📢 ┃ staff-ads", False),
-                ("🖥️ ┃ submit-management", False)
+            "GT | Collection": [
+                ("🟧 ┃ Factory-Rules", "text", False),
+                ("🟧 ┃ Factory-Location", "text", False),
+                ("🟧 ┃ Factory", "text", False)
             ],
-            "Gold Town Public": [
-                ("💸 ┃ credits", False),
-                ("📿 ┃ athkar", False),
-                ("💭 ┃ suggestions", False),
-                ("🎡 ┃ events", False)
-            ],
-            "Social": [
-                ("🎥 ┃ tiktok", False),
-                ("📺 ┃ live-now", False)
-            ],
-            "Gold Town Identity": [
-                ("📇 ┃ character-rules", False),
-                ("📇 ┃ create-character", False)
+            "GT | Justice Team": [
+                ("📄 ┃ Justice-Cases", "text", False),
+                ("🏛️ ┃ Presenting-Justice", "text", False),
+                ("📄 ┃ court-orders", "text", False),
+                ("🧑‍⚖️ ┃ Radio-Court", "voice", False),
+                ("🧑‍⚖️ ┃ Radio-Judges", "voice", False)
             ]
         }
 
-        # 3. إنشاء الأقسام والرومات الجديدة من الصفر
+        # 3. إنشاء الأقسام والرومات الجديدة (نصية وصوتية)
         for category_name, channels in structure.items():
             try:
                 category = await guild.create_category(category_name)
@@ -99,13 +94,17 @@ async def on_ready():
                 print(f"فشل إنشاء القسم {category_name}: {e}")
                 continue
 
-            for ch_name, is_private in channels:
+            for ch_name, ch_type, is_private in channels:
                 try:
                     overwrites = {
-                        guild.default_role: discord.PermissionOverwrite(read_messages=not is_private)
+                        guild.default_role: discord.PermissionOverwrite(read_messages=not is_private, connect=not is_private)
                     }
-                    await guild.create_text_channel(ch_name, category=category, overwrites=overwrites)
-                    print(f"تم إنشاء الروم النصي: {ch_name}")
+                    if ch_type == "text":
+                        await guild.create_text_channel(ch_name, category=category, overwrites=overwrites)
+                        print(f"تم إنشاء الروم النصي: {ch_name}")
+                    elif ch_type == "voice":
+                        await guild.create_voice_channel(ch_name, category=category, overwrites=overwrites)
+                        print(f"تم إنشاء الروم الصوتي: {ch_name}")
                 except Exception as e:
                     print(f"فشل إنشاء الروم {ch_name}: {e}")
 
@@ -362,4 +361,4 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
-
+ 
