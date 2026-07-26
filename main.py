@@ -638,6 +638,27 @@ class TripControlView(discord.ui.View):
         
         await interaction.response.send_modal(TripRenewModal(interaction.message))
 
+
+# قائمة منسدلة لإدخال بيانات الرحلة بدلاً من الزر التقليدي
+class TripSetupSelect(discord.ui.Select):
+    def __init__(self):
+        options = [
+            discord.SelectOption(label="إدخال بيانات الرحلة", description="اضغط هنا لفتح استمارة إدخال بيانات الرحلة وإنشاء اللوحة", emoji="✈️", value="setup_trip")
+        ]
+        super().__init__(placeholder="اضغط هنا لإدخال بيانات الرحلة...", options=options)
+
+    async def callback(self, interaction: discord.Interaction):
+        if not has_trip_permission(interaction.user):
+            await interaction.response.send_message("ليس لديك صلاحية.", ephemeral=True)
+            return
+        await interaction.response.send_modal(TripSetupModal())
+
+class TripSetupView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+        self.add_item(TripSetupSelect())
+
+
 @bot.command(name="trip")
 async def trip_command(ctx):
     if not has_trip_permission(ctx.author):
@@ -649,19 +670,8 @@ async def trip_command(ctx):
     except Exception:
         pass
     
-    view = discord.ui.View()
-    button = discord.ui.Button(label="اضغط هنا لإدخال بيانات الرحلة", style=discord.ButtonStyle.green)
-    
-    async def button_callback(interaction: discord.Interaction):
-        if not has_trip_permission(interaction.user):
-            await interaction.response.send_message("ليس لديك صلاحية.", ephemeral=True)
-            return
-        await interaction.response.send_modal(TripSetupModal())
-        
-    button.callback = button_callback
-    view.add_item(button)
-    
-    await ctx.send("✈️ لإنشاء لوحة التحكم الخاصة بالرحلة، اضغط على الزر بالأسفل:", view=view, delete_after=30)
+    view = TripSetupView()
+    await ctx.send("✈️ لإنشاء لوحة التحكم الخاصة بالرحلة، اختر من القائمة أدناه:", view=view, delete_after=30)
 
 @bot.command(name="character")
 async def character_command(ctx):
@@ -702,4 +712,4 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
- 
+
