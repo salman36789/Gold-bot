@@ -106,12 +106,17 @@ async def on_message(message):
 
     await bot.process_commands(message)
 
-def validate_character_data(first_name, last_name, birthdate_str, gender, birthplace):
+def validate_character_data(first_name, last_name, birthdate_str, gender, birthplace, user_id):
     if re.search(r'[\u0600-\u06FF]', first_name) or re.search(r'[\u0600-\u06FF]', last_name):
         return False, "❌ تم الرفض: ممنوع كتابة الاسم باللغة العربية (يجب أن يكون بالإنجليزية)."
     
     if ' ' in first_name.strip():
         return False, "❌ تم الرفض: الاسم الأول يحتوي على مسافات، يجب أن يكون اسماً واحداً."
+
+    c.execute("SELECT first_name FROM players WHERE discord_id = ?", (user_id,))
+    existing_first_names = [row[0].lower() for row in c.fetchall()]
+    if first_name.strip().lower() in existing_first_names:
+        return False, "❌ تم الرفض: لا يمكنك استخدام نفس الاسم الأول لشخصية أخرى تمتلكها!"
 
     date_pattern = r'^(0?[1-9]|[12][0-9]|3[01])/(0?[1-9]|1[012])/([0-9]{4})$'
     if not re.match(date_pattern, birthdate_str):
@@ -163,7 +168,7 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
         entered_gender = self.gender.value.strip().capitalize()
         entered_place = self.birthplace.value.strip().capitalize()
 
-        is_valid, message_result = validate_character_data(f_name, l_name, entered_birth, entered_gender, entered_place)
+        is_valid, message_result = validate_character_data(f_name, l_name, entered_birth, entered_gender, entered_place, user_id)
         if not is_valid:
             try:
                 await member.send(f"❌ **عذراً، تم رفض طلب إنشاء شخصيتك.**\n**السبب:** {message_result}")
@@ -279,7 +284,7 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
         entered_gender = self.gender.value.strip().capitalize()
         entered_place = self.birthplace.value.strip().capitalize()
 
-        is_valid, message_result = validate_character_data(f_name, l_name, entered_birth, entered_gender, entered_place)
+        is_valid, message_result = validate_character_data(f_name, l_name, entered_birth, entered_gender, entered_place, user_id)
         if not is_valid:
             try:
                 await member.send(f"❌ **عذراً، فشلت عملية تزوير الهوية.**\n**السبب:** {message_result}")
@@ -455,8 +460,8 @@ class CharacterSelect(discord.ui.Select):
                 await interaction.followup.send("❌ ليس لديك أي شخصيات مسجلة!", ephemeral=True)
 
 class CharacterView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
+    def __init__(self, timeout=None):
+        super().__init__(timeout=timeout)
 
 @bot.command(name="character")
 async def character_command(ctx):
@@ -497,4 +502,4 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
-
+ 
