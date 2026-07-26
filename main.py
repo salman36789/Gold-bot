@@ -46,10 +46,11 @@ bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 LOG_CHANNEL_ID = 1530791985131032656
 TARGET_VERIFY_CHANNEL_ID = 1530770263598301225
 VOTING_CHANNEL_ID = 1530770297207263305  
-SPECIFIC_ROOM_ID = 1530770304056557751  # الروم المخصص لتنبيهات الإعصار والتجديد
+SPECIFIC_ROOM_ID = 1530770307357343895  # الروم المحدد لأزرار الإعصار والتجديد والتحكم والرحلات
 REQUIRED_ROLE_NAME = "GT | Trip Support"
 
-IMAGE_URL = "https://cdn.discordapp.com/attachments/1530770297207263305/1531042208252170411/IMG__.jpg?ex=6a67c5ab&is=6a66742b&hm=999c8191853acf2d0d419692f3cbac20a15658b2dad2fe468f5104c4f05ccd13&" 
+# رابط الغلاف الأسود الجديد المتناسق مع جو السيرفر
+BLACK_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop"
 
 @bot.event
 async def on_ready():
@@ -105,7 +106,7 @@ async def on_message(message):
 
     if message.channel.id == TARGET_VERIFY_CHANNEL_ID:
         try:
-            await message.add_reaction("✅")
+            await message.add_reaction("🟡")
             guild = message.guild
             member = message.author
             
@@ -117,7 +118,7 @@ async def on_message(message):
             if unverified_role and unverified_role in member.roles:
                 await member.remove_roles(unverified_role)
                 
-            await message.channel.send(f"✅ تم تفعيلك بنجاح يا {member.mention}! نورت السيرفر.", delete_after=5)
+            await message.channel.send(f"🟡 تم تفعيلك بنجاح يا {member.mention}! نورت السيرفر.", delete_after=5)
         except Exception as e:
             print(f"Error in auto-verify: {e}")
 
@@ -246,7 +247,7 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
         except Exception as e:
             print(f"Error in roles/permissions: {e}")
 
-        embed_accepted = discord.Embed(title="Identity Accepted", color=discord.Color.teal())
+        embed_accepted = discord.Embed(title="Identity Accepted", color=discord.Color.from_str("#111111"))
         embed_accepted.description = (
             f"**Character Number |** `{char_number}`\n\n"
             f"🪪 **First Name |** `{f_name}`\n\n"
@@ -256,8 +257,8 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             f"📍 **Birth Place |** `{entered_place}`\n\n"
             f"🪪 **ID Number |** `{new_identity}`"
         )
-        embed_accepted.set_thumbnail(url=IMAGE_URL)
-        embed_accepted.set_image(url=IMAGE_URL)
+        embed_accepted.set_thumbnail(url=BLACK_IMAGE_URL)
+        embed_accepted.set_image(url=BLACK_IMAGE_URL)
         embed_accepted.set_footer(text="© Gold Town System | 2026")
 
         try:
@@ -267,9 +268,9 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
 
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
-            await log_channel.send(content=f"🎉 **Identity Accepted:** {interaction.user.mention}", embed=embed_accepted)
+            await log_channel.send(content=f"🟡 **Identity Accepted:** {interaction.user.mention}", embed=embed_accepted)
             
-        await interaction.followup.send(f"✅ مبروك! اجتازت شخصيتك كافة الشروط وتم **قبولها تلقائياً** وإرسال تفاصيل الهوية إلى رسائلك الخاصة (DM).", ephemeral=True)
+        await interaction.followup.send(f"🟡 مبروك! اجتازت شخصيتك كافة الشروط وتم **قبولها تلقائياً** وإرسال تفاصيل الهوية إلى رسائلك الخاصة (DM).", ephemeral=True)
 
 class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
     first_name = discord.ui.TextInput(label='الاسم الأول الجديد (إنجليزي)', placeholder='مثال: Jax...')
@@ -334,7 +335,7 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
                 f"🆔 **رقم الهوية:** `{self.identity_id}`"
             )
 
-        await interaction.followup.send(f"✅ نجحت عملية التزوير! تم تحديث هويتك واسمك إلى: `{new_full_name}`.", ephemeral=True)
+        await interaction.followup.send(f"🟡 نجحت عملية التزوير! تم تحديث هويتك واسمك إلى: `{new_full_name}`.", ephemeral=True)
 
 class ForgeSelect(discord.ui.Select):
     def __init__(self, players):
@@ -378,7 +379,7 @@ class LoginSelect(discord.ui.Select):
 
         try:
             await member.edit(nick=char_name)
-            await interaction.response.send_message(f"✅ تم تسجيل الدخول بالشخصية بنجاح: `{char_name}` وتحديث نيك نيم السيرفر!", ephemeral=True)
+            await interaction.response.send_message(f"🟡 تم تسجيل الدخول بالشخصية بنجاح: `{char_name}` وتحديث نيك نيم السيرفر!", ephemeral=True)
         except Exception as e:
             await interaction.response.send_message(f"❌ حدث خطأ أثناء تسجيل الدخول: {e}", ephemeral=True)
 
@@ -404,7 +405,7 @@ class LogoutSelect(discord.ui.Select):
 
         try:
             await member.edit(nick=None)
-            await interaction.response.send_message(f"✅ تم تسجيل الخروج من الشخصية: `{char_name}` بنجاح.", ephemeral=True)
+            await interaction.response.send_message(f"🟡 تم تسجيل الخروج من الشخصية: `{char_name}` بنجاح.", ephemeral=True)
         except Exception as e:
             await interaction.response.send_message(f"❌ حدث خطأ أثناء تسجيل الخروج: {e}", ephemeral=True)
 
@@ -466,13 +467,13 @@ class CharacterView(discord.ui.View):
     def __init__(self, timeout=None):
         super().__init__(timeout=timeout)
 
-# استمارة إنشاء لوحة الرحلة
+# استمارة إنشاء لوحة الرحلة (بدون أزرار تماماً)
 class TripSetupModal(discord.ui.Modal, title='إنشاء وتثبيت لوحة الرحلة'):
     host_name = discord.ui.TextInput(label='اسم الهوست (Host Name)', placeholder='أدخل اسم الهوست...')
     host_id = discord.ui.TextInput(label='آيدي الهوست (Host ID)', placeholder='أدخل آيدي الهوست الديسكورد...')
     co_host_id = discord.ui.TextInput(label='آيدي نائب الهوست (Co-Host ID)', placeholder='أدخل آيدي نائب الهوست...')
     trip_time = discord.ui.TextInput(label='وقت الرحلة', placeholder='مثال: 10:00 PM...')
-    trip_monitors = discord.ui.TextInput(label='رقابي الرحلة', placeholder='أدخل أسماء أو منشن المراقبين...', style=discord.TextStyle.paragraph)
+    trip_monitors = discord.ui.TextInput(label='رقابي الرحلة (يدعم المنشن)', placeholder='اكتب أسماء أو قم بمنشن المراقبين هنا...', style=discord.TextStyle.paragraph)
 
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
@@ -494,21 +495,32 @@ class TripSetupModal(discord.ui.Modal, title='إنشاء وتثبيت لوحة �
                 f"📜 **تعليمات هامة للرحلة:**\n"
                 f"1. يلتزم الجميع باحترام القوانين العامة وعدم المخالفة.\n"
                 f"2. يمنع منعاً باتاً التخريب أو إثارة المشاكل أثناء الرحلة.\n"
-                f"3. يرجى التأكد من تسجيل الدخول بالشخصية الصحيحة فور بدء الرحلة.\n\n"
-                f"👇 **اختر الإجراء المناسب للرحلة من القائمة أو الأزرار أدناه:**"
+                f"3. يرجى التأكد من تسجيل الدخول بالشخصية الصحيحة فور بدء الرحلة."
             ),
-            color=discord.Color.blue()
+            color=discord.Color.from_str("#111111")
         )
-        embed.set_thumbnail(url=IMAGE_URL)
-        embed.set_image(url=IMAGE_URL)
+        embed.set_thumbnail(url=BLACK_IMAGE_URL)
+        embed.set_image(url=BLACK_IMAGE_URL)
         embed.set_footer(text="© Gold Town System | 2026")
 
         voting_channel = bot.get_channel(VOTING_CHANNEL_ID)
         target_channel = voting_channel if voting_channel else interaction.channel
 
-        view = TripControlView()
-        await target_channel.send(embed=embed, view=view)
-        await interaction.followup.send(f"✅ تم نشر لوحة تحكم الرحلة بنجاح في الروم المحدد ({target_channel.mention})!", ephemeral=True)
+        # نشر اللوحة في روم التصويت / الروم الأساسي بدون أزرار
+        await target_channel.send(embed=embed)
+
+        # إرسال أزرار التحكم (إعصار وتجديد وبدء الرحلة) حصراً وبشكل دائم في الروم المخصص (SPECIFIC_ROOM_ID)
+        specific_room = bot.get_channel(SPECIFIC_ROOM_ID)
+        if specific_room:
+            control_view = TripControlView()
+            control_msg = await specific_room.send("⚙️ **لوحة التحكم السريعة للرحلة (إعصار، تجديد، وبدء الرحلة):**", view=control_view)
+            try:
+                await control_msg.add_reaction("🟡")
+                await control_msg.add_reaction("👎")
+            except Exception:
+                pass
+
+        await interaction.followup.send(f"🟡 تم نشر لوحة تحكم الرحلة وإرسال أزرار التحكم إلى الروم المخصص بنجاح!", ephemeral=True)
 
 # استمارة تجديد الرحلة وتحديث آيدي الهوست ونائب الهوست وترسل التنبيه للروم المحدد
 class TripRenewModal(discord.ui.Modal, title='تجديد الرحلة وتحديث الهوست'):
@@ -530,76 +542,38 @@ class TripRenewModal(discord.ui.Modal, title='تجديد الرحلة وتحدي
         if member:
             new_h_name = member.display_name
 
-        old_embed = self.message.embeds[0]
-        
-        updated_description = (
-            f"👤 **الهوست الجديد:** {new_h_name} (<@{new_h_id}>)\n"
-            f"🆔 **آيدي الهوست:** `{new_h_id}`\n"
-            f"🤝 **آيدي نائب الهوست الجديد:** `{new_co_h_id}` (<@{new_co_h_id}>)\n"
-            f"⏰ **وقت الرحلة:** تم التجديد\n\n"
-            f"📜 **تعليمات هامة للرحلة:**\n"
-            f"1. يلتزم الجميع باحترام القوانين العامة وعدم المخالفة.\n"
-            f"2. يمنع منعاً باتاً التخريب أو إثارة المشاكل أثناء الرحلة.\n"
-            f"3. يرجى التأكد من تسجيل الدخول بالشخصية الصحيحة فور بدء الرحلة.\n\n"
-            f"🔄 **تم تجديد الرحلة وتحديث الهوست بواسطة:** {interaction.user.mention}\n\n"
-            f"👇 **اختر الإجراء المناسب للرحلة من القائمة أو الأزرار أدناه:**"
-        )
-
-        old_embed.description = updated_description
-        
-        try:
-            await self.message.edit(embed=old_embed)
-        except Exception as e:
-            print(f"Error editing message: {e}")
+        voting_channel = bot.get_channel(VOTING_CHANNEL_ID)
+        if voting_channel:
+            async for msg in voting_channel.history(limit=10):
+                if msg.embeds and "لوحة تحكم إدارة الرحلات" in msg.embeds[0].title:
+                    old_embed = msg.embeds[0]
+                    updated_description = (
+                        f"👤 **الهوست الجديد:** {new_h_name} (<@{new_h_id}>)\n"
+                        f"🆔 **آيدي الهوست:** `{new_h_id}`\n"
+                        f"🤝 **آيدي نائب الهوست الجديد:** `{new_co_h_id}` (<@{new_co_h_id}>)\n"
+                        f"⏰ **وقت الرحلة:** تم التجديد\n\n"
+                        f"📜 **تعليمات هامة للرحلة:**\n"
+                        f"1. يلتزم الجميع باحترام القوانين العامة وعدم المخالفة.\n"
+                        f"2. يمنع منعاً باتاً التخريب أو إثارة المشاكل أثناء الرحلة.\n"
+                        f"3. يرجى التأكد من تسجيل الدخول بالشخصية الصحيحة فور بدء الرحلة.\n\n"
+                        f"🔄 **تم تجديد الرحلة وتحديث الهوست بواسطة:** {interaction.user.mention}"
+                    )
+                    old_embed.description = updated_description
+                    await msg.edit(embed=old_embed)
+                    break
 
         # إرسال رسالة التجديد إلى الروم المحدد حصراً (SPECIFIC_ROOM_ID)
         specific_room = bot.get_channel(SPECIFIC_ROOM_ID)
         target_channel = specific_room if specific_room else interaction.channel
 
         await target_channel.send(f"🔔 🔄 **تنبيه الرحلة:** تم **تجديد** الرحلة وتعيين هوست جديد (<@{new_h_id}>) ونائب هوست جديد (<@{new_co_h_id}>).")
-        await interaction.followup.send(f"✅ تم تجديد الرحلة وتحديث الهوست ونائب الهوست بنجاح، وإرسال التنبيه إلى الروم المخصص!", ephemeral=True)
-
-class TripSelect(discord.ui.Select):
-    def __init__(self):
-        options = [
-            discord.SelectOption(label="بدء الرحلة", description="تفعيل وبدء الرحلة الحالية", emoji="🟢", value="start"),
-            discord.SelectOption(label="إعصار", description="تفعيل حالة إعصار للرحلة", emoji="⚠️", value="tornado"),
-            discord.SelectOption(label="تجديد", description="تجديد الرحلة وتحديث آيدي الهوست", emoji="🔄", value="renew")
-        ]
-        super().__init__(placeholder="اختر إجراء الرحلة من القائمة...", options=options)
-
-    async def callback(self, interaction: discord.Interaction):
-        if not has_trip_permission(interaction.user):
-            await interaction.response.send_message("ليس لديك الصلاحية لاستخدام هذه القائمة.", ephemeral=True)
-            return
-
-        global current_trip_status
-        choice = self.values[0]
-        
-        specific_room = bot.get_channel(SPECIFIC_ROOM_ID)
-        target_channel = specific_room if specific_room else interaction.channel
-
-        if choice == "start":
-            current_trip_status = True
-            voting_channel = bot.get_channel(VOTING_CHANNEL_ID)
-            start_channel = voting_channel if voting_channel else interaction.channel
-            
-            await interaction.response.send_message("🟡 تم بدء الرحلة بنجاح!", ephemeral=True)
-            await start_channel.send("🟢 **تنبيه الرحلة:** تم بدء الرحلة بنجاح! متاح الآن للجميع تسجيل الدخول بشخصياتهم.")
-            
-        elif choice == "tornado":
-            await interaction.response.send_message("⚠️ تم إرسال تنبيه الإعصار إلى الروم المخصص بنجاح.", ephemeral=True)
-            await target_channel.send("🔔 ⚠️ **تنبيه طارئ:** حالة **إعصار** للرحلة الحالية! يرجى توخي الحذر.")
-            
-        elif choice == "renew":
-            await interaction.response.send_modal(TripRenewModal(interaction.message))
+        await interaction.followup.send(f"🟡 تم تجديد الرحلة وتحديث الهوست ونائب الهوست بنجاح، وإرسال التنبيه إلى الروم المخصص!", ephemeral=True)
 
 class TripControlView(discord.ui.View):
     def __init__(self):
-        super().__init__(timeout=None)
-        self.add_item(TripSelect())
+        super().__init__(timeout=None) # الأزرار لا تختفي نهائياً وتبقى فعالة
 
-    @discord.ui.button(label="بدء رحلة", style=discord.ButtonStyle.green, custom_id="start_trip_btn")
+    @discord.ui.button(label="بدء رحلة", style=discord.ButtonStyle.green, custom_id="start_trip_permanent_btn")
     async def start_trip(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not has_trip_permission(interaction.user):
             await interaction.response.send_message("ليس لديك الصلاحية لاستخدام هذه الأزرار.", ephemeral=True)
@@ -608,17 +582,20 @@ class TripControlView(discord.ui.View):
         global current_trip_status
         current_trip_status = True
         
-        voting_channel = bot.get_channel(VOTING_CHANNEL_ID)
-        target_channel = voting_channel if voting_channel else interaction.channel
+        # إرسال تنبيه البدء والتصويت إلى الروم المحدد (SPECIFIC_ROOM_ID) فور الضغط على الزر مع تفاعل الإيموجي الذهبي
+        specific_room = bot.get_channel(SPECIFIC_ROOM_ID)
+        target_channel = specific_room if specific_room else interaction.channel
 
-        await interaction.response.send_message("🟡 تم بدء الرحلة بنجاح!", ephemeral=True)
-        msg = await target_channel.send("🟢 **تنبيه الرحلة:** تم بدء الرحلة بنجاح! متاح الآن للجميع تسجيل الدخول بشخصياتهم.")
+        await interaction.response.send_message("🟡 تم بدء الرحلة بنجاح وإرسال رسالة التصويت إلى الروم المحدد!", ephemeral=True)
+        
+        poll_msg = await target_channel.send("🟢 **تنبيه الرحلة:** تم بدء الرحلة بنجاح! متاح الآن للجميع تسجيل الدخول بشخصياتهم.\n📊 **تصويت الرحلة:** هل أنت مستعد للرحلة؟ تفاعل بـ (🟡 / 👎)")
         try:
-            await msg.add_reaction("🟡")
+            await poll_msg.add_reaction("🟡")
+            await poll_msg.add_reaction("👎")
         except Exception:
             pass
 
-    @discord.ui.button(label="إعصار", style=discord.ButtonStyle.red, custom_id="tornado_btn")
+    @discord.ui.button(label="إعصار", style=discord.ButtonStyle.red, custom_id="tornado_permanent_btn")
     async def tornado_action(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not has_trip_permission(interaction.user):
             await interaction.response.send_message("ليس لديك الصلاحية لاستخدام هذه الأزرار.", ephemeral=True)
@@ -630,7 +607,7 @@ class TripControlView(discord.ui.View):
         await interaction.response.send_message("⚠️ تم إرسال تنبيه الإعصار إلى الروم المخصص بنجاح.", ephemeral=True)
         await target_channel.send("🔔 ⚠️ **تنبيه طارئ:** حالة **إعصار** للرحلة الحالية! يرجى توخي الحذر.")
 
-    @discord.ui.button(label="تجديد", style=discord.ButtonStyle.blurple, custom_id="renew_btn")
+    @discord.ui.button(label="تجديد", style=discord.ButtonStyle.blurple, custom_id="renew_permanent_btn")
     async def renew_action(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not has_trip_permission(interaction.user):
             await interaction.response.send_message("ليس لديك الصلاحية لاستخدام هذه الأزرار.", ephemeral=True)
@@ -638,8 +615,7 @@ class TripControlView(discord.ui.View):
         
         await interaction.response.send_modal(TripRenewModal(interaction.message))
 
-
-# قائمة منسدلة لإدخال بيانات الرحلة بدلاً من الزر التقليدي
+# قائمة منسدلة لإدخال بيانات الرحلة
 class TripSetupSelect(discord.ui.Select):
     def __init__(self):
         options = [
@@ -657,7 +633,6 @@ class TripSetupView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
         self.add_item(TripSetupSelect())
-
 
 @bot.command(name="trip")
 async def trip_command(ctx):
@@ -680,8 +655,8 @@ async def character_command(ctx):
     except Exception:
         pass
         
-    embed = discord.Embed(title="Character Management", description="Character Creation, Login & Logout System", color=discord.Color.gold())
-    embed.set_image(url=IMAGE_URL)
+    embed = discord.Embed(title="Character Management", description="Character Creation, Login & Logout System", color=discord.Color.from_str("#111111"))
+    embed.set_image(url=BLACK_IMAGE_URL)
     
     view = CharacterView()
     view.add_item(CharacterSelect())
@@ -693,8 +668,8 @@ async def forge_command(ctx):
     c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (user_id,))
     players = c.fetchall()
     if players:
-        embed_forge = discord.Embed(title="Forgery System", description="اختر الشخصية التي تريد تزويرها من القائمة أدناه:", color=discord.Color.dark_red())
-        embed_forge.set_image(url=IMAGE_URL)
+        embed_forge = discord.Embed(title="Forgery System", description="اختر الشخصية التي تريد تزويرها من القائمة أدناه:", color=discord.Color.from_str("#111111"))
+        embed_forge.set_image(url=BLACK_IMAGE_URL)
         await ctx.send(embed=embed_forge, view=ForgeSelectView(players))
     else:
         await ctx.send("❌ ليس لديك أي شخصيات مسجلة لتزويرها!", delete_after=5)
@@ -704,7 +679,7 @@ async def clear_messages(ctx, amount: int = 10):
     if ctx.author != ctx.guild.owner and not ctx.author.guild_permissions.administrator:
         return
     await ctx.channel.purge(limit=amount + 1)
-    msg = await ctx.send(f"🧹 تم حذف {amount} رسالة بنجاح.")
+    msg = await ctx.send(f"🟡 تم حذف {amount} رسالة بنجاح.")
     await asyncio.sleep(3)
     try:
         await msg.delete()
@@ -712,4 +687,4 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
-
+ 
