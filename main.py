@@ -33,17 +33,30 @@ LOG_CHANNEL_ID = 1530708101077012653
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
-        print(f"جاري فحص وتأسيس رومات سيرفر: {guild.name}")
+        print(f"جاري مسح الرومات القديمة وتأسيس رومات Gold Town في سيرفر: {guild.name}")
         
-        # هيكل الأقسام والرومات مع الإيموجيز والرموز المطابقة للصور تماماً
+        # 1. حذف جميع الأقسام والرومات القديمة الموجودة في السيرفر أولاً
+        for channel in guild.channels:
+            try:
+                await channel.delete()
+            except Exception as e:
+                print(f"فشل حذف الروم {channel.name}: {e}")
+                
+        for category in guild.categories:
+            try:
+                await category.delete()
+            except Exception as e:
+                print(f"فشل حذف القسم {category.name}: {e}")
+
+        # 2. هيكل الأقسام والرومات الجديدة بعد الاستبدال إلى Gold Town مع الإيموجيز
         structure = {
-            "North Side | Rules .": [
+            "Gold Town | Rules .": [
                 ("🔒 ┃ PROVE • YOUR • SELF", "text", True),
                 ("🟥 ┃ Rules", "text", True),
                 ("🟥 ┃ New • Rules", "voice", True),
                 ("🔗 ┃ Pinned", "voice", True)
             ],
-            "North Side | Ads .": [
+            "Gold Town | Ads .": [
                 ("📢 ┃ Announcement", "text", True),
                 ("👷 ┃ Update", "voice", True),
                 ("📄 ┃ Merge", "voice", True),
@@ -52,9 +65,9 @@ async def on_ready():
                 ("🔗 ┃ Partner", "voice", True),
                 ("🔴 ┃ Shame", "voice", True)
             ],
-            "NS | Rooms .": [
-                ("🔒 ┃ Discord.gg/ns5", "text", True),
-                ("👤 ┃ NSRP System .2", "voice", True),
+            "GT | Rooms .": [
+                ("🔒 ┃ Discord.gg/gold", "text", True),
+                ("👤 ┃ GT System .2", "voice", True),
                 ("🔒 ┃ Owner", "text", True),
                 ("🔒 ┃ Founders", "text", True),
                 ("🔒 ┃ High Command", "text", True),
@@ -62,19 +75,19 @@ async def on_ready():
                 ("🔒 ┃ Programmer", "text", True),
                 ("🔒 ┃ Respect", "text", True),
                 ("🔒 ┃ Meeting", "text", True),
-                ("🔊 ┃ NS | مجلس • نورت .", "voice", True)
+                ("🔊 ┃ GT | مجلس • غولد .", "voice", True)
             ],
-            "NS | Support .": [
+            "GT | Support .": [
                 ("📧 ┃ Tickets", "text", True),
                 ("❗ ┃ Support 1", "voice", True),
                 ("🔊 ┃ Waiting support .", "voice", True)
             ],
-            "NS | Sumbit Staff": [
+            "GT | Sumbit Staff": [
                 ("📢 ┃ Ads", "text", True),
                 ("🖥️ ┃ Sumbit • Mangement", "text", True),
                 ("⏱️ ┃ Waiting", "voice", True)
             ],
-            "North Side Public .": [
+            "Gold Town Public .": [
                 ("💬 ┃ General • chat", "text", True),
                 ("💸 ┃ Credit", "text", True),
                 ("📿 ┃ Athkar", "text", True),
@@ -86,37 +99,33 @@ async def on_ready():
                 ("🎥 ┃ TikTok", "text", True),
                 ("📺 ┃ Live-Now", "text", True)
             ],
-            "North Side iDenitity .": [
+            "Gold Town iDenitity .": [
                 ("📇 ┃ Character • Rules", "text", True),
                 ("📇 ┃ Create • Character", "text", True)
             ]
         }
 
-        # إنشاء الأقسام والرومات إذا لم تكن موجودة
+        # 3. إنشاء الأقسام والرومات الجديدة بالترتيب
         for category_name, channels in structure.items():
-            category = discord.utils.get(guild.categories, name=category_name)
-            if not category:
-                try:
-                    category = await guild.create_category(category_name)
-                    print(f"تم إنشاء القسم: {category_name}")
-                except Exception as e:
-                    print(f"فشل إنشاء القسم {category_name}: {e}")
-                    continue
+            try:
+                category = await guild.create_category(category_name)
+                print(f"تم إنشاء القسم: {category_name}")
+            except Exception as e:
+                print(f"فشل إنشاء القسم {category_name}: {e}")
+                continue
 
             for ch_name, ch_type, is_private in channels:
-                existing_ch = discord.utils.get(guild.channels, name=ch_name)
-                if not existing_ch:
-                    try:
-                        overwrites = {
-                            guild.default_role: discord.PermissionOverwrite(read_messages=not is_private, connect=not is_private)
-                        }
-                        if ch_type == "text":
-                            await guild.create_text_channel(ch_name, category=category, overwrites=overwrites)
-                        elif ch_type == "voice":
-                            await guild.create_voice_channel(ch_name, category=category, overwrites=overwrites)
-                        print(f"تم إنشاء الروم: {ch_name}")
-                    except Exception as e:
-                        print(f"فشل إنشاء الروم {ch_name}: {e}")
+                try:
+                    overwrites = {
+                        guild.default_role: discord.PermissionOverwrite(read_messages=not is_private, connect=not is_private)
+                    }
+                    if ch_type == "text":
+                        await guild.create_text_channel(ch_name, category=category, overwrites=overwrites)
+                    elif ch_type == "voice":
+                        await guild.create_voice_channel(ch_name, category=category, overwrites=overwrites)
+                    print(f"تم إنشاء الروم: {ch_name}")
+                except Exception as e:
+                    print(f"فشل إنشاء الروم {ch_name}: {e}")
 
 class RejectModal(discord.ui.Modal, title='سبب الرفض'):
     reason = discord.ui.TextInput(label='السبب', style=discord.TextStyle.paragraph)
@@ -371,4 +380,3 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
-
