@@ -33,7 +33,7 @@ LOG_CHANNEL_ID = 1530708101077012653
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
-        print(f"جاري حذف الرومات القديمة وإعادة بناء هيكل GT في سيرفر: {guild.name}")
+        print(f"جاري حذف الرومات القديمة وإعادة بناء الهيكل بدون رومات مقفلة في: {guild.name}")
         
         # 1. حذف جميع الرومات والأقسام القديمة
         for channel in guild.channels:
@@ -48,44 +48,82 @@ async def on_ready():
             except Exception as e:
                 print(f"فشل حذف القسم {category.name}: {e}")
 
-        # 2. الهيكل الجديد مع تغيير NS إلى GT (نصية وصوتية)
+        # 2. الهيكل النهائي (عام للجميع بدون أي رومات خاصة أو مقفلة `is_private = True`)
         structure = {
+            "Gold Town | Rules": [
+                ("🟥 ┃ rules", "text"),
+                ("📜 ┃ new-rules", "text"),
+                ("🔗 ┃ pinned", "text")
+            ],
+            "Gold Town | Ads": [
+                ("📢 ┃ announcement", "text"),
+                ("👷 ┃ updates", "text"),
+                ("📄 ┃ merges", "text"),
+                ("🔍 ┃ hints", "text"),
+                ("🔮 ┃ boosters", "text"),
+                ("🔗 ┃ partners", "text")
+            ],
+            "GT | Rooms": [
+                ("💬 ┃ general-chat", "text")
+            ],
+            "GT | Support": [
+                ("📧 ┃ tickets", "text"),
+                ("❗ ┃ support-chat", "text")
+            ],
+            "GT | Submit Staff": [
+                ("📢 ┃ staff-ads", "text"),
+                ("🖥️ ┃ submit-management", "text")
+            ],
+            "Gold Town Public": [
+                ("💸 ┃ credits", "text"),
+                ("📿 ┃ athkar", "text"),
+                ("💭 ┃ suggestions", "text"),
+                ("🎡 ┃ events", "text")
+            ],
+            "Social": [
+                ("🎥 ┃ tiktok", "text"),
+                ("📺 ┃ live-now", "text")
+            ],
+            "Gold Town Identity": [
+                ("📇 ┃ character-rules", "text"),
+                ("📇 ┃ create-character", "text")
+            ],
             "GT | Phone": [
-                ("📄 ┃ News", "text", False),
-                ("📱 ┃ Phone", "text", False),
-                ("📱 ┃ X", "text", False),
-                ("📱 ┃ X-Video", "text", False)
+                ("📄 ┃ News", "text"),
+                ("📱 ┃ Phone", "text"),
+                ("📱 ┃ X", "text"),
+                ("📱 ┃ X-Video", "text")
             ],
             "GT | Command": [
-                ("⚙️ ┃ Command", "text", False),
-                ("🎒 ┃ Inventory", "text", False),
-                ("🏪 ┃ Shops", "text", False),
-                ("🏦 ┃ Bank", "text", False),
-                ("🏥 ┃ Hospital", "text", False)
+                ("⚙️ ┃ Command", "text"),
+                ("🎒 ┃ Inventory", "text"),
+                ("🏪 ┃ Shops", "text"),
+                ("🏦 ┃ Bank", "text"),
+                ("🏥 ┃ Hospital", "text")
             ],
             "GT | On display": [
-                ("🏠 ┃ Real-Estate", "text", False),
-                ("🚗 ┃ Car-Showroom", "text", False)
+                ("🏠 ┃ Real-Estate", "text"),
+                ("🚗 ┃ Car-Showroom", "text")
             ],
             "GT | Theft": [
-                ("📜 ┃ Robbery-Rules", "text", False),
-                ("🚨 ┃ Reports", "text", False)
+                ("📜 ┃ Robbery-Rules", "text"),
+                ("🚨 ┃ Reports", "text")
             ],
             "GT | Collection": [
-                ("🟧 ┃ Factory-Rules", "text", False),
-                ("🟧 ┃ Factory-Location", "text", False),
-                ("🟧 ┃ Factory", "text", False)
+                ("🟧 ┃ Factory-Rules", "text"),
+                ("🟧 ┃ Factory-Location", "text"),
+                ("🟧 ┃ Factory", "text")
             ],
             "GT | Justice Team": [
-                ("📄 ┃ Justice-Cases", "text", False),
-                ("🏛️ ┃ Presenting-Justice", "text", False),
-                ("📄 ┃ court-orders", "text", False),
-                ("🧑‍⚖️ ┃ Radio-Court", "voice", False),
-                ("🧑‍⚖️ ┃ Radio-Judges", "voice", False)
+                ("📄 ┃ Justice-Cases", "text"),
+                ("🏛️ ┃ Presenting-Justice", "text"),
+                ("📄 ┃ court-orders", "text"),
+                ("🧑‍⚖️ ┃ Radio-Court", "voice"),
+                ("🧑‍⚖️ ┃ Radio-Judges", "voice")
             ]
         }
 
-        # 3. إنشاء الأقسام والرومات الجديدة (نصية وصوتية)
+        # 3. إنشاء الأقسام والرومات العامة المتاحة للجميع
         for category_name, channels in structure.items():
             try:
                 category = await guild.create_category(category_name)
@@ -94,16 +132,13 @@ async def on_ready():
                 print(f"فشل إنشاء القسم {category_name}: {e}")
                 continue
 
-            for ch_name, ch_type, is_private in channels:
+            for ch_name, ch_type in channels:
                 try:
-                    overwrites = {
-                        guild.default_role: discord.PermissionOverwrite(read_messages=not is_private, connect=not is_private)
-                    }
                     if ch_type == "text":
-                        await guild.create_text_channel(ch_name, category=category, overwrites=overwrites)
+                        await guild.create_text_channel(ch_name, category=category)
                         print(f"تم إنشاء الروم النصي: {ch_name}")
                     elif ch_type == "voice":
-                        await guild.create_voice_channel(ch_name, category=category, overwrites=overwrites)
+                        await guild.create_voice_channel(ch_name, category=category)
                         print(f"تم إنشاء الروم الصوتي: {ch_name}")
                 except Exception as e:
                     print(f"فشل إنشاء الروم {ch_name}: {e}")
