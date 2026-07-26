@@ -29,7 +29,9 @@ conn.commit()
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
-bot = commands.Bot(command_prefix="!", intents=intents)
+
+# إلغاء أمر المساعدة الافتراضي لمنع تكرار الرسائل
+bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
 LOG_CHANNEL_ID = 1530791985131032656
 TARGET_VERIFY_CHANNEL_ID = 1530770263598301225
@@ -40,7 +42,7 @@ async def on_ready():
     print(f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
         await setup_server_permissions(guild)
-    print("البوت يعمل بنجاح، ونظام الشخصيات وتسجيل الدخول/الخروج وتزوير الهوية منفصل تماماً مفعل!")
+    print("البوت يعمل بنجاح، وتم ضبط إعدادات الردود ومنع التكرار!")
 
 async def setup_server_permissions(guild):
     inactive_role = discord.utils.get(guild.roles, name="Inactive")
@@ -323,12 +325,6 @@ class LoginSelect(discord.ui.Select):
 
         try:
             await member.edit(nick=char_name)
-            
-            # إزالة أي رتب شخصيات أخرى موجودة للعضو وإضافة الرتبة الجديدة
-            for r in member.roles:
-                # نفترض أن رتب الشخصيات تكون ملونة باللون الأزرق أو مطابقة لأسماء الشخصيات
-                pass
-            
             new_role = discord.utils.get(guild.roles, name=char_name)
             if not new_role:
                 new_role = await guild.create_role(name=char_name, color=discord.Color.blue())
@@ -360,12 +356,10 @@ class LogoutSelect(discord.ui.Select):
         member = interaction.user
 
         try:
-            # إزالة رتبة الشخصية عند الخروج
             role_to_remove = discord.utils.get(guild.roles, name=char_name)
             if role_to_remove and role_to_remove in member.roles:
                 await member.remove_roles(role_to_remove)
             
-            # إعادة النيك نيم للاسم الأصلي بالديسكورد
             await member.edit(nick=None)
             await interaction.response.send_message(f"✅ تم تسجيل الخروج من الشخصية: `{char_name}` بنجاح.", ephemeral=True)
         except Exception as e:
@@ -440,7 +434,6 @@ async def character_command(ctx):
     embed.set_image(url=IMAGE_URL)
     await ctx.send(embed=embed, view=CharacterView())
     
-    # رسالة منفصلة خاصة بزر تزوير الهوية مع الصورة المطلوبة
     embed_forge = discord.Embed(title="Forgery System", description="اضغط على الزر أدناه لتزوير هوية شخصيتك:", color=discord.Color.dark_red())
     embed_forge.set_image(url=IMAGE_URL)
     await ctx.send(embed=embed_forge, view=ForgeButtonView())
