@@ -34,18 +34,24 @@ TARGET_VERIFY_CHANNEL_ID = 1530770263598301225
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
-    print("البوت يعمل بنجاح مع التحقق من أيدي سوني (PSN ID) وتعديل الرتبة تلقائياً!")
+    print("البوت يعمل بنجاح، ونظام الرتب والصلاحيات وأيدي سوني مفعل تماماً!")
 
+# عند دخول عضو جديد: منحه رتبة Unverified و Inactive وتوجيهه لقسم الروان والقوانين فقط
 @bot.event
 async def on_member_join(member):
     guild = member.guild
     unverified_role = discord.utils.get(guild.roles, name="Unverified")
-    if unverified_role:
-        try:
+    inactive_role = discord.utils.get(guild.roles, name="Inactive")
+    
+    try:
+        if unverified_role:
             await member.add_roles(unverified_role)
-        except:
-            pass
+        if inactive_role:
+            await member.add_roles(inactive_role)
+    except Exception as e:
+        print(f"خطأ عند دخول العضو: {e}")
 
+# التفعيل التلقائي في روم الأيدي المخصص
 @bot.event
 async def on_message(message):
     if message.author.bot:
@@ -73,7 +79,6 @@ async def on_message(message):
 
 # دالة للتحقق من صحة أيدي سوني (PSN ID Rules)
 def is_valid_psn_id(psn_id):
-    # شروط أيدي سوني: من 3 إلى 16 حرف، يبدأ بحرف، ويحتوي فقط على حروف، أرقام، _، -
     pattern = r'^[a-zA-Z][a-zA-Z0-9_-]{2,15}$'
     return bool(re.match(pattern, psn_id))
 
@@ -86,9 +91,10 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
     async def on_submit(self, interaction: discord.Interaction):
         user_id = interaction.user.id
         guild = interaction.guild
+        member = interaction.user
         entered_psn = self.psn_id.value.strip()
 
-        # 1. التحقق من صحة الأيدي في السوني
+        # 1. التحقق من صحة أيدي سوني
         if not is_valid_psn_id(entered_psn):
             await interaction.response.send_message(
                 "❌ **أيدي سوني (PSN ID) غير صحيح!**\n"
@@ -110,17 +116,32 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             if not c.fetchone():
                 break
 
-        full_name_eng = f"GD | {entered_psn}"
+        character_name = entered_psn
 
-        # 2. حفظ البيانات في قاعدة البيانات مع أيدي السوني
+        # 2. حفظ البيانات في قاعدة البيانات
         c.execute("INSERT INTO players (discord_id, identity_id, psn_id, birthdate, birthplace, bio, balance, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", 
                   (user_id, new_identity, entered_psn, self.birthdate.value, self.birthplace.value, self.bio.value, 1000, 'active'))
         conn.commit()
         
         try:
-            # 3. إنشاء رتبة الشخصية باسم أيدي السوني مباشرة
-            blue_role = await guild.create_role(name=full_name_eng, color=discord.Color.blue(), reason="رتبة هوية اللاعب برابط سوني")
-            member = interaction.user
+            # 3. تغيير اسم العضو في السيرفر (Nickname) لأيدي سوني
+            try:
+                await member.edit(nick=character_name)
+            except Exception as nick_err:
+                print(f"ملاحظة: لم يتمكن البوت من تغيير النيك نيم (تأكد أن رتبة البوت أعلى من العضو وليست أعلى من المالك): {nick_err}")
+
+            # 4. إدارة الرتب (إزالة Inactive، إضافة Identity والرتبة الزرقاء الشخصية)
+            inactive_role = discord.utils.get(guild.roles, name="Inactive")
+            identity_role = discord.utils.get(guild.roles, name="Identity")
+            
+            if inactive_role and inactive_role in member.roles:
+                await member.remove_roles(inactive_role)
+            
+            if identity_role and identity_role not in member.roles:
+                await member.add_roles(identity_role)
+
+            # إنشاء رتبة الهوية الخاصة باسم العضو (بدون بادئة GD |)
+            blue_role = await guild.create_role(name=character_name, color=discord.Color.blue(), reason="رتبة هوية اللاعب برابط سوني")
             await member.add_roles(blue_role)
             
             verified_role = discord.utils.get(guild.roles, name="Verified")
@@ -130,25 +151,28 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             if unverified_role and unverified_role in member.roles:
                 await member.remove_roles(unverified_role)
 
-            game_categories_names = ["gt | phone", "gt | command", "gt | on display", "gt | theft", "collection", "gt | justice team"]
+            # 5. فتح صلاحيات رومات وأقسام الـ RP تلقائياً لرتبة Identity أو رتبة الهوية الجديدة
+            game_categories_names = ["gt | phone", "gt | command", "gt | on display", "gt | theft", "collection", "gt | justice team", "gold town public", "social"]
             for cat in guild.categories:
                 if any(name in cat.name.lower() for name in game_categories_names):
-                    await cat.set_permissions(blue_role, read_messages=True)
+                    if identity_role:
+                        await cat.set_permissions(identity_role, read_messages=True, send_messages=True)
+                    await cat.set_permissions(blue_role, read_messages=True, send_messages=True)
 
         except Exception as e:
-            print(f"خطأ في إنشاء رتبة الهوية والصلاحيات: {e}")
+            print(f"خطأ في إعدادات الرتب والصلاحيات: {e}")
 
         log_channel = bot.get_channel(LOG_CHANNEL_ID)
         if log_channel:
             await log_channel.send(
-                f"📇 **تم التحقق من سوني وإنشاء هوية جديدة:** {interaction.user.mention}\n"
-                f"🎮 **أيدي سوني (PSN ID):** `{entered_psn}`\n"
-                f"🆔 **رقم الهوية الداخلي:** `{new_identity}`\n"
-                f"👤 **اسم الرتبة:** {full_name_eng}\n"
+                f"📇 **تم إنشاء شخصية جديدة بنجاح:** {interaction.user.mention}\n"
+                f"🎮 **أيدي سوني:** `{entered_psn}`\n"
+                f"🆔 **رقم الهوية:** `{new_identity}`\n"
+                f"👤 **الاسم الجديد:** {character_name}\n"
                 f"📅 **المواليد:** {self.birthdate.value}"
             )
             
-        await interaction.response.send_message(f"✅ تم التحقق من أيدي سوني بنجاح وإنشاء شخصيتك باسم **{full_name_eng}**! رقم هويتك: **{new_identity}**.", ephemeral=True)
+        await interaction.response.send_message(f"✅ تم إنشاء شخصيتك بنجاح! تم تغيير اسمك إلى **{character_name}** ومنحك صلاحيات أقسام الـ RP.", ephemeral=True)
 
 class CharacterSelect(discord.ui.Select):
     def __init__(self):
@@ -168,7 +192,7 @@ class CharacterSelect(discord.ui.Select):
             if players:
                 text = "هوياتك المسجلة:\n"
                 for idx, p in enumerate(players, 1):
-                    text += f"\n**الشخصية {idx}:**\n- 🆔 رقم الهوية: `{p[0]}`\n- 🎮 أيدي سوني: `GD | {p[1]}`\n- 📅 المواليد: {p[2]}\n- 💰 الرصيد: {p[4]}\n"
+                    text += f"\n**الشخصية {idx}:**\n- 🆔 رقم الهوية: `{p[0]}`\n- 🎮 أيدي سوني: `{p[1]}`\n- 📅 المواليد: `{p[2]}`\n- 💰 الرصيد: `{p[4]}`\n"
                 await interaction.response.send_message(text, ephemeral=True)
             else:
                 await interaction.response.send_message("❌ ليس لديك أي شخصيات مسجلة!", ephemeral=True)
@@ -198,4 +222,4 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
- 
+
