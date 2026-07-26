@@ -34,7 +34,37 @@ TARGET_VERIFY_CHANNEL_ID = 1530770263598301225
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
-    print("البوت يعمل بنجاح، وتم تأمين قسم الأقيام للإدارة فقط ورومات الـ RP مشاهدة فقط!")
+    
+    # ضبط الصلاحيات تلقائياً لكل السيرفر فور تشغيل البوت
+    for guild in bot.guilds:
+        await setup_server_permissions(guild)
+        
+    print("تم ضبط كافة الأقسام والصلاحيات تلقائياً بنجاح!")
+
+async def setup_server_permissions(guild):
+    inactive_role = discord.utils.get(guild.roles, name="Inactive")
+    identity_role = discord.utils.get(guild.roles, name="Identity")
+    
+    game_categories_names = [
+        "gt | on display", "gt | theft", "collection", "gt | justice team", 
+        "gt | phone", "gt | command", "gold town public", "social"
+    ]
+    
+    for cat in guild.categories:
+        cat_name_lower = cat.name.lower()
+        
+        # 1. قسم الأقيام أو الجيم: إغلاق الكتابة للجميع عدا الإدارة
+        if "game" in cat_name_lower or "أقيام" in cat_name_lower or "اقيام" in cat_name_lower:
+            await cat.set_permissions(guild.default_role, send_messages=False)
+            if identity_role:
+                await cat.set_permissions(identity_role, send_messages=False)
+                
+        # 2. أقسام الـ RP: إخفاء عن Inactive، وجعلها مشاهدة فقط (قراءة) لمن لديه Identity
+        elif any(name in cat_name_lower for name in game_categories_names):
+            if inactive_role:
+                await cat.set_permissions(inactive_role, read_messages=False, send_messages=False)
+            if identity_role:
+                await cat.set_permissions(identity_role, read_messages=True, send_messages=False)
 
 @bot.event
 async def on_member_join(member):
@@ -143,28 +173,8 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             if unverified_role and unverified_role in member.roles:
                 await member.remove_roles(unverified_role)
 
-            # معالجة الأقسام والصلاحيات
-            game_categories_names = [
-                "gt | on display", "gt | theft", "collection", "gt | justice team", 
-                "gt | phone", "gt | command", "gold town public", "social"
-            ]
-            
-            for cat in guild.categories:
-                cat_name_lower = cat.name.lower()
-                
-                # قسم الأقيام أو الجيم: منع الكتابة تماماً عن الجميع عدا الإدارة
-                if "game" in cat_name_lower or "أقيام" in cat_name_lower or "اقيام" in cat_name_lower:
-                    await cat.set_permissions(guild.default_role, send_messages=False)
-                    if identity_role:
-                        await cat.set_permissions(identity_role, send_messages=False)
-                
-                # أقسام الـ RP (الظاهرة في الصور): مشاهدة فقط لرتبة Identity والهوية الشخصية وإخفاؤها عن Inactive
-                elif any(name in cat_name_lower for name in game_categories_names):
-                    if inactive_role:
-                        await cat.set_permissions(inactive_role, read_messages=False, send_messages=False)
-                    if identity_role:
-                        await cat.set_permissions(identity_role, read_messages=True, send_messages=False)
-                    await cat.set_permissions(blue_role, read_messages=True, send_messages=False)
+            # تطبيق الصلاحيات بشكل فوري على الأقسام فور إنشاء الشخصية
+            await setup_server_permissions(guild)
 
         except Exception as e:
             print(f"خطأ في إعدادات الرتب والصلاحيات: {e}")
@@ -179,7 +189,7 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
                 f"📅 **المواليد:** {self.birthdate.value}"
             )
             
-        await interaction.response.send_message(f"✅ تم إنشاء شخصيتك بنجاح! تم إتاحة رؤية رومات الـ RP (للقراءة فقط).", ephemeral=True)
+        await interaction.response.send_message(f"✅ تم إنشاء شخصيتك بنجاح! وتحديث صلاحيات الأقسام تلقائياً.", ephemeral=True)
 
 class CharacterSelect(discord.ui.Select):
     def __init__(self):
@@ -229,4 +239,4 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
- 
+
