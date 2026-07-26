@@ -30,6 +30,9 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 LOG_CHANNEL_ID = 1530708101077012653
 
+# متغير لمنع تشغيل الأمر أكثر من مرة في نفس الوقت
+is_building = False
+
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
@@ -38,118 +41,129 @@ async def on_ready():
 @bot.command(name="build")
 @commands.has_permissions(administrator=True)
 async def build_server(ctx):
+    global is_building
+    if is_building:
+        await ctx.send("⚠️ عملية البناء تعمل بالفعل، انتظر حتى تنتهي!", delete_after=5)
+        return
+
+    is_building = True
     guild = ctx.guild
     await ctx.send("🔄 جاري تنظيف السيرفر وإعادة بناء الأقسام والرومات بدون تكرار... انتظر قليلاً.")
-    print(f"جاري تنظيف وحذف الرومات القديمة في: {guild.name}")
     
-    # 1. حذف جميع الرومات القديمة
-    for channel in guild.channels:
-        try:
-            await channel.delete()
-            await asyncio.sleep(0.4)
-        except Exception as e:
-            print(f"فشل حذف الروم {channel.name}: {e}")
-            
-    # 2. حذف جميع الأقسام القديمة
-    for category in guild.categories:
-        try:
-            await category.delete()
-            await asyncio.sleep(0.4)
-        except Exception as e:
-            print(f"فشل حذف القسم {category.name}: {e}")
-
-    # 3. الهيكل المرتب بدون أي تكرار
-    structure = {
-        "Gold Town | Rules": [
-            ("🟥 ┃ rules", "text"),
-            ("📜 ┃ new-rules", "text"),
-            ("🔗 ┃ pinned", "text")
-        ],
-        "Gold Town | Ads": [
-            ("📢 ┃ announcement", "text"),
-            ("👷 ┃ updates", "text"),
-            ("📄 ┃ merges", "text"),
-            ("🔍 ┃ hints", "text"),
-            ("🔮 ┃ boosters", "text"),
-            ("🔗 ┃ partners", "text")
-        ],
-        "GT | Support": [
-            ("📧 ┃ tickets", "text"),
-            ("❗ ┃ support-chat", "text")
-        ],
-        "GT | Submit Staff": [
-            ("📢 ┃ staff-ads", "text"),
-            ("🖥️ ┃ submit-management", "text")
-        ],
-        "Gold Town Public": [
-            ("💬 ┃ general-chat", "text"),
-            ("💸 ┃ credits", "text"),
-            ("📿 ┃ athkar", "text"),
-            ("💭 ┃ suggestions", "text"),
-            ("🎡 ┃ events", "text")
-        ],
-        "Social": [
-            ("🎥 ┃ tiktok", "text"),
-            ("📺 ┃ live-now", "text")
-        ],
-        "Gold Town Identity": [
-            ("📇 ┃ character-rules", "text"),
-            ("📇 ┃ create-character", "text")
-        ],
-        "GT | Phone": [
-            ("📄 ┃ News", "text"),
-            ("📱 ┃ Phone", "text"),
-            ("📱 ┃ X", "text"),
-            ("📱 ┃ X-Video", "text")
-        ],
-        "GT | Command": [
-            ("⚙️ ┃ Command", "text"),
-            ("🎒 ┃ Inventory", "text"),
-            ("🏪 ┃ Shops", "text"),
-            ("🏦 ┃ Bank", "text"),
-            ("🏥 ┃ Hospital", "text")
-        ],
-        "GT | On display": [
-            ("🏠 ┃ Real-Estate", "text"),
-            ("🚗 ┃ Car-Showroom", "text")
-        ],
-        "GT | Theft": [
-            ("📜 ┃ Robbery-Rules", "text"),
-            ("🚨 ┃ Reports", "text")
-        ],
-        "GT | Collection": [
-            ("🟧 ┃ Factory-Rules", "text"),
-            ("🟧 ┃ Factory-Location", "text"),
-            ("🟧 ┃ Factory", "text")
-        ],
-        "GT | Justice Team": [
-            ("📄 ┃ Justice-Cases", "text"),
-            ("🏛️ ┃ Presenting-Justice", "text"),
-            ("📄 ┃ court-orders", "text"),
-            ("🧑‍⚖️ ┃ Radio-Court", "voice"),
-            ("🧑‍⚖️ ┃ Radio-Judges", "voice")
-        ]
-    }
-
-    # 4. إنشاء الأقسام والرومات الجديدة بمسافات زمنية آمنة لمنع التكرار
-    for category_name, channels in structure.items():
-        try:
-            category = await guild.create_category(category_name)
-            await asyncio.sleep(0.8) 
-        except Exception as e:
-            continue
-
-        for ch_name, ch_type in channels:
+    try:
+        print(f"جاري تنظيف وحذف الرومات القديمة في: {guild.name}")
+        
+        # 1. حذف جميع الرومات القديمة
+        for channel in list(guild.channels):
             try:
-                if ch_type == "text":
-                    await guild.create_text_channel(ch_name, category=category)
-                elif ch_type == "voice":
-                    await guild.create_voice_channel(ch_name, category=category)
-                await asyncio.sleep(0.5)
+                await channel.delete()
+                await asyncio.sleep(0.4)
+            except Exception as e:
+                pass
+                
+        # 2. حذف جميع الأقسام القديمة
+        for category in list(guild.categories):
+            try:
+                await category.delete()
+                await asyncio.sleep(0.4)
             except Exception as e:
                 pass
 
-    print("✅ تم إعادة بناء السيرفر بنجاح ودون أي تكرار!")
+        # 3. الهيكل المرتب بدون أي تكرار
+        structure = {
+            "Gold Town | Rules": [
+                ("🟥 ┃ rules", "text"),
+                ("📜 ┃ new-rules", "text"),
+                ("🔗 ┃ pinned", "text")
+            ],
+            "Gold Town | Ads": [
+                ("📢 ┃ announcement", "text"),
+                ("👷 ┃ updates", "text"),
+                ("📄 ┃ merges", "text"),
+                ("🔍 ┃ hints", "text"),
+                ("🔮 ┃ boosters", "text"),
+                ("🔗 ┃ partners", "text")
+            ],
+            "GT | Support": [
+                ("📧 ┃ tickets", "text"),
+                ("❗ ┃ support-chat", "text")
+            ],
+            "GT | Submit Staff": [
+                ("📢 ┃ staff-ads", "text"),
+                ("🖥️ ┃ submit-management", "text")
+            ],
+            "Gold Town Public": [
+                ("💬 ┃ general-chat", "text"),
+                ("💸 ┃ credits", "text"),
+                ("📿 ┃ athkar", "text"),
+                ("💭 ┃ suggestions", "text"),
+                ("🎡 ┃ events", "text")
+            ],
+            "Social": [
+                ("🎥 ┃ tiktok", "text"),
+                ("📺 ┃ live-now", "text")
+            ],
+            "Gold Town Identity": [
+                ("📇 ┃ character-rules", "text"),
+                ("📇 ┃ create-character", "text")
+            ],
+            "GT | Phone": [
+                ("📄 ┃ News", "text"),
+                ("📱 ┃ Phone", "text"),
+                ("📱 ┃ X", "text"),
+                ("📱 ┃ X-Video", "text")
+            ],
+            "GT | Command": [
+                ("⚙️ ┃ Command", "text"),
+                ("🎒 ┃ Inventory", "text"),
+                ("🏪 ┃ Shops", "text"),
+                ("🏦 ┃ Bank", "text"),
+                ("🏥 ┃ Hospital", "text")
+            ],
+            "GT | On display": [
+                ("🏠 ┃ Real-Estate", "text"),
+                ("🚗 ┃ Car-Showroom", "text")
+            ],
+            "GT | Theft": [
+                ("📜 ┃ Robbery-Rules", "text"),
+                ("🚨 ┃ Reports", "text")
+            ],
+            "GT | Collection": [
+                ("🟧 ┃ Factory-Rules", "text"),
+                ("🟧 ┃ Factory-Location", "text"),
+                ("🟧 ┃ Factory", "text")
+            ],
+            "GT | Justice Team": [
+                ("📄 ┃ Justice-Cases", "text"),
+                ("🏛️ ┃ Presenting-Justice", "text"),
+                ("📄 ┃ court-orders", "text"),
+                ("🧑‍⚖️ ┃ Radio-Court", "voice"),
+                ("🧑‍⚖️ ┃ Radio-Judges", "voice")
+            ]
+        }
+
+        # 4. إنشاء الأقسام والرومات الجديدة بمسافات زمنية آمنة
+        for category_name, channels in structure.items():
+            try:
+                category = await guild.create_category(category_name)
+                await asyncio.sleep(0.8) 
+            except Exception as e:
+                continue
+
+            for ch_name, ch_type in channels:
+                try:
+                    if ch_type == "text":
+                        await guild.create_text_channel(ch_name, category=category)
+                    elif ch_type == "voice":
+                        await guild.create_voice_channel(ch_name, category=category)
+                    await asyncio.sleep(0.5)
+                except Exception as e:
+                    pass
+
+        print("✅ تم إعادة بناء السيرفر بنجاح ودون أي تكرار!")
+    
+    finally:
+        is_building = False
 
 class RejectModal(discord.ui.Modal, title='سبب الرفض'):
     reason = discord.ui.TextInput(label='السبب', style=discord.TextStyle.paragraph)
@@ -404,4 +418,4 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
-
+ 
