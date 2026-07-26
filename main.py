@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+from discord import app_commands
 import sqlite3
 import os
 import random
@@ -50,6 +51,12 @@ IMAGE_URL = "https://cdn.discordapp.com/attachments/1530770297207263305/15310422
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
+    try:
+        synced = await bot.tree.sync()
+        print(f"Synced {len(synced)} slash commands.")
+    except Exception as e:
+        print(f"Failed to sync slash commands: {e}")
+        
     for guild in bot.guilds:
         await setup_server_permissions(guild)
     print("Bot is online and running successfully!")
@@ -452,7 +459,6 @@ class CharacterView(discord.ui.View):
     def __init__(self, timeout=None):
         super().__init__(timeout=timeout)
 
-# لوحة تحكم الرحلات والأزرار
 class TripControlView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
@@ -484,7 +490,15 @@ class TripControlView(discord.ui.View):
             return
         await interaction.response.send_message("🔄 تم تجديد الرحلة بنجاح.", ephemeral=False)
 
-# أمر عادي للرحلات يعمل فوراً بـ !trip
+@bot.tree.command(name="trip", description="لوحة تحكم إدارة الرحلات")
+async def slash_trip(interaction: discord.Interaction):
+    if not has_trip_permission(interaction.user):
+        await interaction.response.send_message("عذراً، لا تمتلك رتبة `GT | Trip Support` أو صلاحية الأدمن لاستخدام هذا الأمر.", ephemeral=True)
+        return
+
+    view = TripControlView()
+    await interaction.response.send_message("✈️ **لوحة تحكم إدارة الرحلات:**\nاختر الإجراء المناسب من الأسفل:", view=view, ephemeral=False)
+
 @bot.command(name="trip")
 async def trip_command(ctx):
     if not has_trip_permission(ctx.author):
