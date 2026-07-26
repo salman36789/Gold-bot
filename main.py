@@ -33,7 +33,7 @@ LOG_CHANNEL_ID = 1530708101077012653
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
     for guild in bot.guilds:
-        print(f"جاري حذف الرومات القديمة وإعادة بناء الهيكل بدون رومات مقفلة في: {guild.name}")
+        print(f"جاري حذف الرومات القديمة وإعادة بناء الهيكل بدون تكرار في: {guild.name}")
         
         # 1. حذف جميع الرومات والأقسام القديمة
         for channel in guild.channels:
@@ -48,7 +48,7 @@ async def on_ready():
             except Exception as e:
                 print(f"فشل حذف القسم {category.name}: {e}")
 
-        # 2. الهيكل النهائي (عام للجميع بدون أي رومات خاصة أو مقفلة `is_private = True`)
+        # 2. الهيكل الموحد والخالي تماماً من أي تكرار
         structure = {
             "Gold Town | Rules": [
                 ("🟥 ┃ rules", "text"),
@@ -63,9 +63,6 @@ async def on_ready():
                 ("🔮 ┃ boosters", "text"),
                 ("🔗 ┃ partners", "text")
             ],
-            "GT | Rooms": [
-                ("💬 ┃ general-chat", "text")
-            ],
             "GT | Support": [
                 ("📧 ┃ tickets", "text"),
                 ("❗ ┃ support-chat", "text")
@@ -75,6 +72,7 @@ async def on_ready():
                 ("🖥️ ┃ submit-management", "text")
             ],
             "Gold Town Public": [
+                ("💬 ┃ general-chat", "text"),
                 ("💸 ┃ credits", "text"),
                 ("📿 ┃ athkar", "text"),
                 ("💭 ┃ suggestions", "text"),
@@ -123,7 +121,7 @@ async def on_ready():
             ]
         }
 
-        # 3. إنشاء الأقسام والرومات العامة المتاحة للجميع
+        # 3. إنشاء الأقسام والرومات بشكل دقيق بدون أي تكرار
         for category_name, channels in structure.items():
             try:
                 category = await guild.create_category(category_name)
