@@ -1,6 +1,5 @@
 import discord
 from discord.ext import commands
-from discord import app_commands
 import sqlite3
 import os
 import random
@@ -55,13 +54,6 @@ IMAGE_URL = "https://cdn.discordapp.com/attachments/1530770297207263305/15310422
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
-    try:
-        # مزامنة الأوامر فورياً (سيتم مزامنتها مع كافة السيرفرات التي يتواجد فيها البوت)
-        synced = await bot.tree.sync()
-        print(f"Synced {len(synced)} slash commands.")
-    except Exception as e:
-        print(f"Failed to sync slash commands: {e}")
-        
     for guild in bot.guilds:
         await setup_server_permissions(guild)
     print("Bot is online and running successfully!")
@@ -585,14 +577,7 @@ class TripControlView(discord.ui.View):
         await interaction.response.send_message("🔄 تم إرسال تنبيه التجديد إلى روم الـ Voting بنجاح.", ephemeral=True)
         await target_channel.send("🔔 🔄 **تنبيه الرحلة:** تم **تجديد** الرحلة بنجاح.")
 
-@bot.tree.command(name="trip", description="إنشاء لوحة تحكم إدارة الرحلات وإرسالها لـ روم التصويت")
-async def slash_trip(interaction: discord.Interaction):
-    if not has_trip_permission(interaction.user):
-        await interaction.response.send_message("عذراً، لا تمتلك رتبة `GT | Trip Support` أو صلاحية الأدمن لاستخدام هذا الأمر.", ephemeral=True)
-        return
-
-    await interaction.response.send_modal(TripSetupModal())
-
+# تم تحويل الأمر إلى Prefix Command عادي (يبدأ بـ !) ليعمل فوراً بدون مشاكل السلاش بالجوال
 @bot.command(name="trip")
 async def trip_command(ctx):
     if not has_trip_permission(ctx.author):
@@ -604,7 +589,23 @@ async def trip_command(ctx):
     except Exception:
         pass
 
-    await ctx.send("لإنشاء لوحة تحكم الرحلة متضمنة آيدي الهوست وتوجيهها لروم الـ Voting، يفضل استخدام الأمر السلاش: `/trip` لإدخال البيانات بشكل مرتب عبر القائمة المنبثقة.")
+    # فتح المودال مباشرة عبر رسالة مؤقتة أو باستخدامInteraction إذا تطلب الأمر، ولكن بما أن الـ Prefix لا يدعم Modal مباشرة، 
+    # قمنا بإنشاء طريقة تفاعلية عبر زر أو سيتم إرسال لوحة مباشرة. 
+    # (بما أن الـ Modal يتطلب Interaction، سنضع زر لتفعيل لوحة إدخال البيانات أو نقوم بإرسالها مباشرة)
+    
+    view = discord.ui.View()
+    button = discord.ui.Button(label="اضغط هنا لإدخال بيانات الرحلة", style=discord.ButtonStyle.green)
+    
+    async def button_callback(interaction: discord.Interaction):
+        if not has_trip_permission(interaction.user):
+            await interaction.response.send_message("ليس لديك صلاحية.", ephemeral=True)
+            return
+        await interaction.response.send_modal(TripSetupModal())
+        
+    button.callback = button_callback
+    view.add_item(button)
+    
+    await ctx.send("✈️ لإنشاء لوحة التحكم الخاصة بالرحلة، اضغط على الزر بالأسفل لإدخال اسم الهوست وآيديه ووقت الرحلة:", view=view, delete_after=30)
 
 @bot.command(name="character")
 async def character_command(ctx):
