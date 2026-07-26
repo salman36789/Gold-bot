@@ -17,7 +17,7 @@ c.execute('''CREATE TABLE IF NOT EXISTS players (
                 identity_id INTEGER UNIQUE,
                 first_name TEXT,
                 last_name TEXT,
-                psn_id TEXT,
+                mind TEXT,
                 birthdate TEXT, 
                 birthplace TEXT, 
                 bio TEXT, 
@@ -143,7 +143,7 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
     last_name = discord.ui.TextInput(label='الاسم الثاني (اسم واحد إنجليزي بدون مسافات)', placeholder='مثال: Wick...')
     birthdate = discord.ui.TextInput(label='مواليد الشخصية (يوم/شهر/سنة)', placeholder='مثال: 1/1/1999')
     birthplace = discord.ui.TextInput(label='مكان الولادة (بوليتو / ساندي / لوس)', placeholder='أدخل مكان الولادة...')
-    psn_id = discord.ui.TextInput(label='أيدي السوني (PSN ID)', placeholder='أدخل أيدي السوني...')
+    mind = discord.ui.TextInput(label='فكر الشخصية', placeholder='أدخل فكر الشخصية...')
 
     async def on_submit(self, interaction: discord.Interaction):
         user_id = interaction.user.id
@@ -154,7 +154,7 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
         l_name = self.last_name.value.strip()
         entered_birth = self.birthdate.value.strip()
         entered_place = self.birthplace.value.strip()
-        entered_psn = self.psn_id.value.strip()
+        entered_mind = self.mind.value.strip()
 
         is_valid, message_result = validate_character_data(f_name, l_name, entered_birth, entered_place)
         if not is_valid:
@@ -176,8 +176,8 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
 
         role_character_name = f"{f_name} {l_name}"
 
-        c.execute("INSERT INTO players (discord_id, identity_id, first_name, last_name, psn_id, birthdate, birthplace, bio, balance, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
-                  (user_id, new_identity, f_name, l_name, entered_psn, entered_birth, entered_place, "مقبول تلقائياً", 1000, 'active'))
+        c.execute("INSERT INTO players (discord_id, identity_id, first_name, last_name, mind, birthdate, birthplace, bio, balance, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+                  (user_id, new_identity, f_name, l_name, entered_mind, entered_birth, entered_place, "مقبول تلقائياً", 1000, 'active'))
         conn.commit()
         
         try:
@@ -215,7 +215,7 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             await log_channel.send(
                 f"🎉 **تم قبول وإنشاء شخصية جديدة تلقائياً:** {interaction.user.mention}\n"
                 f"👤 **اسم الشخصية (الرول):** `{role_character_name}`\n"
-                f"🎮 **أيدي سوني:** `{entered_psn}`\n"
+                f"🧠 **فكر الشخصية:** `{entered_mind}`\n"
                 f"🆔 **رقم الهوية:** `{new_identity}`\n"
                 f"📅 **المواليد:** `{entered_birth}`\n"
                 f"📍 **مكان الولادة:** `{entered_place}`"
@@ -228,7 +228,6 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
     last_name = discord.ui.TextInput(label='الاسم الثاني الجديد (إنجليزي)', placeholder='مثال: Wick...')
     birthdate = discord.ui.TextInput(label='مواليد الشخصية الجديدة (يوم/شهر/سنة)', placeholder='مثال: 1/1/1999')
     birthplace = discord.ui.TextInput(label='مكان الولادة (بوليتو / ساندي / لوس)', placeholder='أدخل مكان الولادة...')
-    psn_id = discord.ui.TextInput(label='أيدي السوني الجديد (PSN ID)', placeholder='أدخل أيدي السوني...')
 
     def __init__(self, identity_id, old_full_name):
         super().__init__()
@@ -244,7 +243,6 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
         l_name = self.last_name.value.strip()
         entered_birth = self.birthdate.value.strip()
         entered_place = self.birthplace.value.strip()
-        entered_psn = self.psn_id.value.strip()
 
         is_valid, message_result = validate_character_data(f_name, l_name, entered_birth, entered_place)
         if not is_valid:
@@ -254,9 +252,9 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
         new_full_name = f"{f_name} {l_name}"
 
         c.execute("""UPDATE players 
-                     SET first_name = ?, last_name = ?, psn_id = ?, birthdate = ?, birthplace = ? 
+                     SET first_name = ?, last_name = ?, birthdate = ?, birthplace = ? 
                      WHERE identity_id = ? AND discord_id = ?""",
-                  (f_name, l_name, entered_psn, entered_birth, entered_place, self.identity_id, user_id))
+                  (f_name, l_name, entered_birth, entered_place, self.identity_id, user_id))
         conn.commit()
 
         try:
@@ -280,8 +278,7 @@ class ForgeModal(discord.ui.Modal, title='تزوير هوية شخصية'):
             await log_channel.send(
                 f"⚠️ **تم تزوير وتحديث هوية بنجاح:** {interaction.user.mention}\n"
                 f"👤 **الاسم القديم:** `{self.old_full_name}` ➡️ **الاسم المزور الجديد:** `{new_full_name}`\n"
-                f"🆔 **رقم الهوية:** `{self.identity_id}`\n"
-                f"🎮 **أيدي السوني الجديد:** `{entered_psn}`"
+                f"🆔 **رقم الهوية:** `{self.identity_id}`"
             )
 
         await interaction.response.send_message(f"✅ نجحت عملية التزوير! تم تحديث هويتك واسمك إلى: `{new_full_name}`.", ephemeral=True)
@@ -398,12 +395,12 @@ class CharacterSelect(discord.ui.Select):
             else:
                 await interaction.response.send_message("❌ ليس لديك شخصيات مسجلة!", ephemeral=True)
         elif self.values[0] == "Show identity":
-            c.execute("SELECT identity_id, first_name, last_name, psn_id, birthdate, birthplace, balance FROM players WHERE discord_id = ?", (user_id,))
+            c.execute("SELECT identity_id, first_name, last_name, mind, birthdate, birthplace, balance FROM players WHERE discord_id = ?", (user_id,))
             players = c.fetchall()
             if players:
                 text = "هوياتك المسجلة:\n"
                 for idx, p in enumerate(players, 1):
-                    text += f"\n**الشخصية {idx}:**\n- 👤 الاسم: `{p[1]} {p[2]}`\n- 🆔 رقم الهوية: `{p[0]}`\n- 🎮 أيدي سوني: `{p[3]}`\n- 📅 المواليد: `{p[4]}`\n- 📍 مكان الولادة: `{p[5]}`\n- 💰 الرصيد: `{p[6]}`\n"
+                    text += f"\n**الشخصية {idx}:**\n- 👤 الاسم: `{p[1]} {p[2]}`\n- 🆔 رقم الهوية: `{p[0]}`\n- 🧠 فكر الشخصية: `{p[3]}`\n- 📅 المواليد: `{p[4]}`\n- 📍 مكان الولادة: `{p[5]}`\n- 💰 الرصيد: `{p[6]}`\n"
                 await interaction.response.send_message(text, ephemeral=True)
             else:
                 await interaction.response.send_message("❌ ليس لديك أي شخصيات مسجلة!", ephemeral=True)
