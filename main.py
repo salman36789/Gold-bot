@@ -13,6 +13,7 @@ DB_FILE = os.path.join(BASE_DIR, 'bot_database.db')
 conn = sqlite3.connect(DB_FILE, check_same_thread=False)
 c = conn.cursor()
 
+# 1. جدول الشخصيات والهويات
 c.execute('''CREATE TABLE IF NOT EXISTS players (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, 
                 discord_id INTEGER, 
@@ -27,11 +28,32 @@ c.execute('''CREATE TABLE IF NOT EXISTS players (
                 status TEXT
             )''')
 
+# 2. جدول الرحلات
 c.execute('''CREATE TABLE IF NOT EXISTS trips (
              id INTEGER PRIMARY KEY AUTOINCREMENT,
              discord_id INTEGER,
              status TEXT
           )''')
+
+# 3. جدول الحسابات البنكية (رصيد افتراضي 5000)
+c.execute('''CREATE TABLE IF NOT EXISTS bank_accounts (
+                id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                discord_id INTEGER UNIQUE,
+                account_name TEXT,
+                pin_code TEXT,
+                iban TEXT,
+                balance INTEGER DEFAULT 5000
+            )''')
+
+# 4. جدول شنطة اللاعبين والأدوات (احتياطي للأنظمة)
+c.execute('''CREATE TABLE IF NOT EXISTS user_inventory (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                discord_id INTEGER,
+                item_key TEXT,
+                item_name TEXT,
+                item_count INTEGER,
+                item_image TEXT
+            )''')
 
 conn.commit()
 
@@ -48,11 +70,13 @@ TARGET_VERIFY_CHANNEL_ID = 1530770263598301225
 VOTING_CHANNEL_ID = 1531068507050217616  
 SPECIFIC_ROOM_ID = 1530770307357343895    
 TARGET_ACTION_ROOM_ID = 1530770304056557751  # روم إرسال إشعارات الإعصار والتجديد
+BANK_LOG_CHANNEL_ID = 1531305086666412163  # روم سجلات البنك
 REQUIRED_ROLE_NAME = "GT | Trip Support"
 
 BLACK_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop"
 CUSTOM_TRIP_IMAGE = "https://cdn.discordapp.com/attachments/1530770369060016178/1531093153854001275/IMG__.jpg?ex=6a67f51e&is=6a66a39e&hm=a1fa106680e5411b414810d4de090c586add9f6e4df1d137ec651dfe4233056b&"
 CHARACTER_SYSTEM_IMAGE = "https://cdn.discordapp.com/attachments/1530770369060016178/1531093153854001275/IMG__.jpg?ex=6a67f51e&is=6a66a39e&hm=a1fa106680e5411b414810d4de090c586add9f6e4df1d137ec651dfe4233056b&"
+BANK_IMAGE_URL = "https://cdn.discordapp.com/attachments/1530770369060016178/1531093153854001275/IMG__.jpg?ex=6a67f51e&is=6a66a39e&hm=a1fa106680e5411b414810d4de090c586add9f6e4df1d137ec651dfe4233056b&"
 
 @bot.event
 async def on_ready():
@@ -362,12 +386,14 @@ class ForgeSelectView(discord.ui.View):
 class LoginSelect(discord.ui.Select):
     def __init__(self, players):
         options = []
-        for p in players:
+        number_words = ["الاولى", "الثانية", "الثالثة"]
+        for idx, p in enumerate(players):
             identity_id = p[0]
             full_name = f"{p[1]} {p[2]}"
-            options.append(discord.SelectOption(label=f"تسجيل دخول: {full_name}", description=f"رقم الهوية: {identity_id}", value=str(identity_id)))
-        super().__init__(placeholder="اختر الشخصية لتسجيل الدخول بها...", options=options)
-        self.players_dict = {str(p[0]): f"{p[1]} {p[2]}" for p in players}
+            label = f"الشخصية {number_words[idx]}" if idx < len(number_words) else f"الشخصية {idx + 1}"
+            options.append(discord.SelectOption(label=label, description=f"الاسم: {full_name} | الهوية: {identity_id}", value=str(identity_id)))
+        super().__init__(placeholder="Choose a character you want to join with", options=options)
+        self.players_dict = {str(p[0]): p for p in players}
 
     async def callback(self, interaction: discord.Interaction):
         global current_trip_status
@@ -376,12 +402,42 @@ class LoginSelect(discord.ui.Select):
             return
 
         selected_identity = self.values[0]
-        char_name = self.players_dict.get(selected_identity)
+        player_data = self.players_dict.get(selected_identity)
+        identity_id = player_data[0]
+        f_name = player_data[1]
+        l_name = player_data[2]
+        birthdate = player_data[3]
+        gender = player_data[4]
+        birthplace = player_data[5]
+        balance = player_data[6]
+        
+        full_name = f"{f_name} {l_name}"
         member = interaction.user
 
+        c.execute("SELECT balance FROM bank_accounts WHERE discord_id = ?", (member.id,))
+        bank_row = c.fetchone()
+        bank_balance = bank_row[0] if bank_row else 5000
+
         try:
-            await member.edit(nick=char_name)
-            await interaction.response.send_message(f"🟡 تم تسجيل الدخول بالشخصية بنجاح: `{char_name}` وتحديث نيك نيم السيرفر!", ephemeral=True)
+            await member.edit(nick=full_name)
+            
+            embed_login = discord.Embed(
+                title="Gold Town",
+                description=(
+                    f"**First Name**          `{f_name}`\n"
+                    f"**Birthdate**         `{birthdate}`\n"
+                    f"**Gender**            `{gender}`\n"
+                    f"**Nationality**     `{birthplace}`\n"
+                    f"**Job**               `Police`\n"
+                    f"**Cash**              `{balance} $`\n"
+                    f"**Bank**              `{bank_balance} $`"
+                ),
+                color=discord.Color.gold()
+            )
+            embed_login.set_image(url=CHARACTER_SYSTEM_IMAGE)
+            embed_login.set_footer(text=f"Identity Number: {identity_id}")
+
+            await interaction.response.send_message(embed=embed_login, ephemeral=True)
         except Exception as e:
             await interaction.response.send_message(f"❌ حدث خطأ أثناء تسجيل الدخول: {e}", ephemeral=True)
 
@@ -441,10 +497,10 @@ class CharacterSelect(discord.ui.Select):
                 await interaction.followup.send("❌ مافي رحلة الآن! لا يمكنك تسجيل الدخول للشخصية حتى تبدأ الرحلة.", ephemeral=True)
                 return
 
-            c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (user_id,))
+            c.execute("SELECT identity_id, first_name, last_name, birthdate, gender, birthplace, balance FROM players WHERE discord_id = ?", (user_id,))
             players = c.fetchall()
             if players:
-                await interaction.followup.send("اختر الشخصية لتسجيل الدخول:", view=LoginSelectView(players), ephemeral=True)
+                await interaction.followup.send("Choose a character you want to join with", view=LoginSelectView(players), ephemeral=True)
             else:
                 await interaction.followup.send("❌ ليس لديك أي شخصيات مسجلة لتسجيل الدخول بها!", ephemeral=True)
         elif self.values[0] == "Logout":
@@ -520,7 +576,6 @@ class TripRenewModal(discord.ui.Modal, title='تجديد الرحلة وتحدي
         new_h_id = self.new_host_id.value.strip()
         new_co_h_id = self.new_co_host_id.value.strip()
 
-        # إرسال إيمبد تجديد الرحلة إلى الروم المحدد (TARGET_ACTION_ROOM_ID) بطريقة احترافية مثل الصور
         action_channel = bot.get_channel(TARGET_ACTION_ROOM_ID)
         target_channel = action_channel if action_channel else interaction.channel
 
@@ -544,7 +599,7 @@ class TripRenewModal(discord.ui.Modal, title='تجديد الرحلة وتحدي
 
 class TripControlView(discord.ui.View):
     def __init__(self):
-        super().__init__(timeout=None) # الأزرار تظل ثابتة ولا تختفي أبداً
+        super().__init__(timeout=None)
 
     @discord.ui.button(label="إدخال بيانات الرحلة", style=discord.ButtonStyle.secondary, emoji="✈️", custom_id="setup_trip_modal_btn", row=0)
     async def setup_trip_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -570,7 +625,6 @@ class TripControlView(discord.ui.View):
             await interaction.response.send_message("ليس لديك الصلاحية لاستخدام هذه الأزرار.", ephemeral=True)
             return
         
-        # إرسال إيمبد إعصار احترافي ومتكامل إلى الروم المحدد (TARGET_ACTION_ROOM_ID)
         action_channel = bot.get_channel(TARGET_ACTION_ROOM_ID)
         target_channel = action_channel if action_channel else interaction.channel
 
@@ -600,6 +654,166 @@ class TripControlView(discord.ui.View):
             return
         
         await interaction.response.send_modal(TripRenewModal())
+
+# ==================== (أوامر وأنظمة البنك المدمجة) ====================
+
+class ChangeDataView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="تغيير البيانات", style=discord.ButtonStyle.secondary, emoji="✏️")
+    async def change_data(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = discord.Embed(
+            title="⚙️ - Settings",
+            description="ميزة تعديل البيانات قيد التفعيل...",
+            color=discord.Color.from_str("#111111")
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+class CreateBankAccountModal(discord.ui.Modal, title='إنشاء حساب بنكي'):
+    account_name = discord.ui.TextInput(label='اسم الحساب البنكي', placeholder='أدخل اسم الحساب...')
+    pin_code = discord.ui.TextInput(label='الرقم السرى (Pin)', placeholder='أدخل الأرقام السرية...', style=discord.TextStyle.short)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        user_id = interaction.user.id
+        acc_name = self.account_name.value.strip()
+        pin = self.pin_code.value.strip()
+
+        c.execute("SELECT 1 FROM bank_accounts WHERE discord_id = ?", (user_id,))
+        if c.fetchone():
+            embed_err = discord.Embed(title="❌ - Error", description="لديك حساب بنكي مسجل مسبقاً بالفعل!", color=discord.Color.red())
+            await interaction.followup.send(embed=embed_err, ephemeral=True)
+            return
+
+        iban = f"IB{random.randint(100000, 999999)}"
+
+        c.execute("INSERT INTO bank_accounts (discord_id, account_name, pin_code, iban, balance) VALUES (?, ?, ?, ?, ?)", 
+                  (user_id, acc_name, pin, iban, 5000))
+        conn.commit()
+
+        try:
+            embed_dm = discord.Embed(
+                title="Your Account",
+                description=(
+                    f"• **Your Account :**\n\n"
+                    f"**Card Name :** {acc_name}\n\n"
+                    f"**Password :** {pin}\n\n"
+                    f"**Iban :** {iban}"
+                ),
+                color=discord.Color.from_str("#111111")
+            )
+            embed_dm.set_footer(text="© Effect Kings System | 2026")
+            await interaction.user.send(embed=embed_dm, view=ChangeDataView())
+            
+            embed_success = discord.Embed(title="✅ - Success", description="تم إنشاء حسابك البنكي وإرسال تفاصيل الحساب إلى رسائلك الخاصة (DM)!", color=discord.Color.green())
+            await interaction.followup.send(embed=embed_success, ephemeral=True)
+        except Exception:
+            embed_warn = discord.Embed(title="⚠️ - Warning", description="تم إنشاء حسابك بنجاح، ولكن تعذر إرسال الرسالة الخاصة تأكد من فتح رسائلك الخاصة (DM).", color=discord.Color.orange())
+            await interaction.followup.send(embed=embed_warn, ephemeral=True)
+
+        log_channel = bot.get_channel(BANK_LOG_CHANNEL_ID)
+        if log_channel:
+            embed_log = discord.Embed(
+                title="📝 | سجل جديد: إنشاء حساب بنكي",
+                description=(
+                    f"👤 **العضو:** {interaction.user.mention}\n"
+                    f"📂 **اسم الحساب:** `{acc_name}`\n"
+                    f"💳 **الآيبان:** `{iban}`\n"
+                    f"💰 **الرصيد الابتدائي:** `5000 $`"
+                ),
+                color=discord.Color.green()
+            )
+            await log_channel.send(embed=embed_log)
+
+class BankServicesView(discord.ui.View):
+    def __init__(self, user_id):
+        super().__init__(timeout=None)
+        self.user_id = user_id
+
+    @discord.ui.button(label="Money", style=discord.ButtonStyle.primary, emoji="💰", row=0)
+    async def check_money(self, interaction: discord.Interaction, button: discord.ui.Button):
+        c.execute("SELECT account_name, balance, iban FROM bank_accounts WHERE discord_id = ?", (interaction.user.id,))
+        acc = c.fetchone()
+        if not acc:
+            embed_err = discord.Embed(title="❌ - Error", description="ليس لديك حساب بنكي!", color=discord.Color.red())
+            await interaction.response.send_message(embed=embed_err, ephemeral=True)
+            return
+        
+        embed = discord.Embed(
+            title="💰 - Bank Balance",
+            description=f"📂 **الحساب:** `{acc[0]}`\n💳 **الآيبان:** `{acc[2]}`\n💵 **الرصيد المتوفر:** `{acc[1]} $`",
+            color=discord.Color.from_str("#111111")
+        )
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @discord.ui.button(label="Transfer", style=discord.ButtonStyle.success, emoji="🏦", row=0)
+    async def transfer_money(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = discord.Embed(title="🔄 - Transfer", description="ميزة التحويل قيد التفعيل...", color=discord.Color.from_str("#111111"))
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @discord.ui.button(label="Deposit", style=discord.ButtonStyle.success, emoji="💵", row=1)
+    async def deposit_money(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = discord.Embed(title="📥 - Deposit", description="ميزة الإيداع قيد التفعيل...", color=discord.Color.from_str("#111111"))
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    @discord.ui.button(label="Withdraw", style=discord.ButtonStyle.success, emoji="💳", row=1)
+    async def withdraw_money(self, interaction: discord.Interaction, button: discord.ui.Button):
+        embed = discord.Embed(title="📤 - Withdraw", description="ميزة السحب قيد التفعيل...", color=discord.Color.from_str("#111111"))
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+
+class MainBankView(discord.ui.View):
+    def __init__(self):
+        super().__init__(timeout=None)
+
+    @discord.ui.button(label="Gold Bank", style=discord.ButtonStyle.primary, emoji="🏦", row=0)
+    async def gold_bank(self, interaction: discord.Interaction, button: discord.ui.Button):
+        c.execute("SELECT 1 FROM bank_accounts WHERE discord_id = ?", (interaction.user.id,))
+        if not c.fetchone():
+            embed_err = discord.Embed(title="❌ - Error", description="ليس لديك حساب بنكي! الرجاء الضغط على زر **Create Bank** لإنشاء حسابك أولاً.", color=discord.Color.red())
+            await interaction.response.send_message(embed=embed_err, ephemeral=True)
+            return
+        
+        embed = discord.Embed(
+            title="🏛️ - Bank System",
+            description="اختر الخدمة التي تريدها من البنك",
+            color=discord.Color.from_str("#111111")
+        )
+        embed.set_footer(text="© Effect Kings System | 2026")
+        await interaction.response.send_message(embed=embed, view=BankServicesView(interaction.user.id), ephemeral=True)
+
+    @discord.ui.button(label="Create Bank", style=discord.ButtonStyle.success, emoji="💳", row=0)
+    async def create_bank(self, interaction: discord.Interaction, button: discord.ui.Button):
+        c.execute("SELECT 1 FROM bank_accounts WHERE discord_id = ?", (interaction.user.id,))
+        if c.fetchone():
+            embed_err = discord.Embed(title="❌ - Error", description="لديك حساب بنكي مسجل مسبقاً بالفعل!", color=discord.Color.red())
+            await interaction.response.send_message(embed=embed_err, ephemeral=True)
+            return
+        await interaction.response.send_modal(CreateBankAccountModal())
+
+    @discord.ui.button(label="Choose Your Account", style=discord.ButtonStyle.secondary, emoji="⚙️", row=1)
+    async def choose_account(self, interaction: discord.Interaction, button: discord.ui.Button):
+        c.execute("SELECT account_name, pin_code, iban, balance FROM bank_accounts WHERE discord_id = ?", (interaction.user.id,))
+        acc = c.fetchone()
+        if acc:
+            embed = discord.Embed(
+                title="Your Account",
+                description=(
+                    f"• **Your Account :**\n\n"
+                    f"**Card Name :** {acc[0]}\n\n"
+                    f"**Password :** {acc[1]}\n\n"
+                    f"**Iban :** {acc[2]}\n\n"
+                    f"**Balance :** {acc[3]} $"
+                ),
+                color=discord.Color.from_str("#111111")
+            )
+            embed.set_footer(text="© Effect Kings System | 2026")
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+        else:
+            embed_err = discord.Embed(title="❌ - Error", description="ليس لديك أي حساب بنكي مسجل. اضغط على **Create Bank** لإنشاء حساب.", color=discord.Color.red())
+            await interaction.response.send_message(embed=embed_err, ephemeral=True)
+
+# ==================== الأوامر العامة (Commands) ====================
 
 @bot.command(name="trip")
 async def trip_command(ctx):
@@ -646,6 +860,56 @@ async def forge_command(ctx):
         await ctx.send(embed=embed_forge, view=ForgeSelectView(players))
     else:
         await ctx.send("❌ ليس لديك أي شخصيات مسجلة لتزويرها!", delete_after=5)
+
+@bot.command(name="bank")
+async def bank_command(ctx):
+    if not ctx.author.guild_permissions.administrator:
+        return
+    try:
+        await ctx.message.delete()
+    except Exception:
+        pass
+
+    embed = discord.Embed(
+        title="💳 | Bank • Services",
+        description=(
+            "هذه هي خدمات البنك المتوفرة داخل السيرفر:\n\n"
+            "💳 **| All members are required to create a bank account before using any financial services.**\n"
+            "**Without a bank account, you will not be able to access transfers, deposits, withdrawals, or other banking features.**\n\n"
+            "يجب على كل عضو إنشاء حساب بنكي للاستفادة من الخدمات المالية .\n"
+            "يمكنك من خلال البنك إيداع الأموال وسحبها وتحويلها بين الحسابات .\n"
+            "جميع العمليات المالية يتم تسجيلها ومتابعتها بشكل تلقائي .\n"
+            "الحساب البنكي يساعدك على حفظ أموالك وإدارتها بشكل آمن .\n"
+            "تتوفر خدمات إضافية أخرى متعلقة بالبنك والتمويل داخل السيرفر ."
+        ),
+        color=discord.Color.from_str("#111111")
+    )
+    embed.set_image(url=BANK_IMAGE_URL)
+    embed.set_footer(text="© Effect Kings System | 2026")
+
+    await ctx.send(embed=embed, view=MainBankView())
+
+@bot.command(name="missing")
+async def missing_characters(ctx):
+    if not ctx.author.guild_permissions.administrator:
+        return
+
+    c.execute("SELECT discord_id FROM bank_accounts")
+    registered_ids = {row[0] for row in c.fetchall()}
+
+    missing_members = [m.mention for m in ctx.guild.members if not m.bot and m.id not in registered_ids]
+
+    if missing_members:
+        members_text = ", ".join(missing_members[:30])
+        embed = discord.Embed(
+            title="⚠️ | تنبيه الأعضاء الذين لم يسجلوا دخول بشخصية",
+            description=f"الأعضاء التاليين لم يقوموا بإنشاء حساب بنكي حتى الآن:\n\n{members_text}",
+            color=discord.Color.orange()
+        )
+        await ctx.send(embed=embed)
+    else:
+        embed_ok = discord.Embed(title="✅ - Complete", description="ممتاز، جميع الأعضاء قاموا بإنشاء حساباتهم!", color=discord.Color.green())
+        await ctx.send(embed=embed_ok)
 
 @bot.command(name="امسح")
 async def clear_messages(ctx, amount: int = 10):
