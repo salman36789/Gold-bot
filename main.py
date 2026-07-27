@@ -498,19 +498,11 @@ class TripSetupModal(discord.ui.Modal, title='إنشاء وتثبيت لوحة �
         )
         embed.set_image(url=CUSTOM_TRIP_IMAGE)
         
-        voting_channel = bot.get_channel(VOTING_CHANNEL_ID)
+        voting_channel = bot.get_channel(SPECIFIC_ROOM_ID)
         target_channel = voting_channel if voting_channel else interaction.channel
 
         await target_channel.send(embed=embed)
-
-        control_view = TripControlView()
-        control_msg = await target_channel.send("⚙️ **لوحة التحكم السريعة للرحلة (إعصار، تجديد، وبدء الرحلة):**", view=control_view)
-        try:
-            await control_msg.add_reaction("🟡")
-        except Exception:
-            pass
-
-        await interaction.followup.send(f"🟡 تم نشر لوحة تحكم الرحلة والأزرار إلى روم التصويت بنجاح!", ephemeral=True)
+        await interaction.followup.send(f"🟡 تم نشر لوحة معلومات الرحلة إلى روم التصويت بنجاح!", ephemeral=True)
 
 class TripRenewModal(discord.ui.Modal, title='تجديد الرحلة وتحديث الهوست'):
     new_host_id = discord.ui.TextInput(label='آيدي الهوست الجديد (Host ID)', placeholder='أدخل آيدي الهوست الجديد...')
@@ -526,7 +518,7 @@ class TripRenewModal(discord.ui.Modal, title='تجديد الرحلة وتحدي
         new_h_id = self.new_host_id.value.strip()
         new_co_h_id = self.new_co_host_id.value.strip()
 
-        voting_channel = bot.get_channel(VOTING_CHANNEL_ID)
+        voting_channel = bot.get_channel(SPECIFIC_ROOM_ID)
         target_channel = voting_channel if voting_channel else interaction.channel
 
         if voting_channel:
@@ -555,7 +547,14 @@ class TripControlView(discord.ui.View):
     def __init__(self):
         super().__init__(timeout=None)
 
-    @discord.ui.button(label="بدء رحلة", style=discord.ButtonStyle.green, custom_id="start_trip_permanent_btn")
+    @discord.ui.button(label="إدخال بيانات الرحلة", style=discord.ButtonStyle.secondary, emoji="✈️", custom_id="setup_trip_modal_btn", row=0)
+    async def setup_trip_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not has_trip_permission(interaction.user):
+            await interaction.response.send_message("ليس لديك صلاحية.", ephemeral=True)
+            return
+        await interaction.response.send_modal(TripSetupModal())
+
+    @discord.ui.button(label="بدء رحلة", style=discord.ButtonStyle.green, custom_id="start_trip_permanent_btn", row=0)
     async def start_trip(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not has_trip_permission(interaction.user):
             await interaction.response.send_message("ليس لديك الصلاحية لاستخدام هذه الأزرار.", ephemeral=True)
@@ -564,10 +563,10 @@ class TripControlView(discord.ui.View):
         global current_trip_status
         current_trip_status = True
         
-        voting_channel = bot.get_channel(VOTING_CHANNEL_ID)
+        voting_channel = bot.get_channel(SPECIFIC_ROOM_ID)
         target_channel = voting_channel if voting_channel else interaction.channel
 
-        await interaction.response.send_message("🟡 تم بدء الرحلة بنجاح وإرسال رسالة التصويت إلى روم التصويت!", ephemeral=True)
+        await interaction.response.send_message("🟡 تم بدء الرحلة بنجاح وإرسال رسالة التصويت إلى روم التصويت المحدد!", ephemeral=True)
         
         poll_msg = await target_channel.send("🟢 **تنبيه الرحلة:** تم بدء الرحلة بنجاح! متاح الآن للجميع تسجيل الدخول بشخصياتهم.\n📊 **تصويت الرحلة:** هل أنت مستعد للرحلة؟ تفاعل بـ (🟡)")
         try:
@@ -575,43 +574,25 @@ class TripControlView(discord.ui.View):
         except Exception:
             pass
 
-    @discord.ui.button(label="إعصار", style=discord.ButtonStyle.red, custom_id="tornado_permanent_btn")
+    @discord.ui.button(label="إعصار", style=discord.ButtonStyle.red, custom_id="tornado_permanent_btn", row=1)
     async def tornado_action(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not has_trip_permission(interaction.user):
             await interaction.response.send_message("ليس لديك الصلاحية لاستخدام هذه الأزرار.", ephemeral=True)
             return
         
-        voting_channel = bot.get_channel(VOTING_CHANNEL_ID)
+        voting_channel = bot.get_channel(SPECIFIC_ROOM_ID)
         target_channel = voting_channel if voting_channel else interaction.channel
 
         await interaction.response.send_message("⚠️ تم إرسال تنبيه الإعصار إلى روم التصويت بنجاح.", ephemeral=True)
         await target_channel.send("🔔 ⚠️ **تنبيه طارئ:** حالة **إعصار** للرحلة الحالية! يرجى توخي الحذر.")
 
-    @discord.ui.button(label="تجديد", style=discord.ButtonStyle.blurple, custom_id="renew_permanent_btn")
+    @discord.ui.button(label="تجديد", style=discord.ButtonStyle.blurple, custom_id="renew_permanent_btn", row=1)
     async def renew_action(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not has_trip_permission(interaction.user):
             await interaction.response.send_message("ليس لديك الصلاحية لاستخدام هذه الأزرار.", ephemeral=True)
             return
         
         await interaction.response.send_modal(TripRenewModal(interaction.message))
-
-class TripSetupSelect(discord.ui.Select):
-    def __init__(self):
-        options = [
-            discord.SelectOption(label="إدخال بيانات الرحلة", description="اضغط هنا لفتح استمارة إدخال بيانات الرحلة وإنشاء اللوحة", emoji="✈️", value="setup_trip")
-        ]
-        super().__init__(placeholder="اضغط هنا لإدخال بيانات الرحلة...", options=options)
-
-    async def callback(self, interaction: discord.Interaction):
-        if not has_trip_permission(interaction.user):
-            await interaction.response.send_message("ليس لديك صلاحية.", ephemeral=True)
-            return
-        await interaction.response.send_modal(TripSetupModal())
-
-class TripSetupView(discord.ui.View):
-    def __init__(self, timeout=None):
-        super().__init__(timeout=timeout)
-        self.add_item(TripSetupSelect())
 
 @bot.command(name="trip")
 async def trip_command(ctx):
@@ -624,8 +605,8 @@ async def trip_command(ctx):
     except Exception:
         pass
     
-    view = TripSetupView()
-    await ctx.send("✈️ لإنشاء لوحة التحكم الخاصة بالرحلة، اختر من القائمة أدناه:", view=view, delete_after=30)
+    view = TripControlView()
+    await ctx.send("✈️ **لوحة التحكم السريعة للرحلة (إدخال البيانات، بدء، تجديد، وإعصار):**", view=view, delete_after=30)
 
 @bot.command(name="character")
 async def character_command(ctx):
