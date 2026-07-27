@@ -45,12 +45,12 @@ bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
 LOG_CHANNEL_ID = 1530791985131032656
 TARGET_VERIFY_CHANNEL_ID = 1530770263598301225
-VOTING_CHANNEL_ID = 1530770297207263305  
-SPECIFIC_ROOM_ID = 1530770307357343895  # الروم المحدد لأزرار الإعصار والتجديد والتحكم والرحلات
+VOTING_CHANNEL_ID = 1531068507050217616  # روم التصويت والتحكم بالرحلات
+SPECIFIC_ROOM_ID = 1530770307357343895    # روم تزوير الهوية
 REQUIRED_ROLE_NAME = "GT | Trip Support"
 
-# رابط الغلاف الأسود الجديد المتناسق مع جو السيرفر
 BLACK_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop"
+CUSTOM_TRIP_IMAGE = "https://cdn.discordapp.com/attachments/1530770338319827046/1531089283333750824/IMG__.jpg?ex=6a67f183&is=6a66a003&hm=b42a4d387f6535474e956f3a206d4213d5f22739f2180b2981d56fb309a63e3f&"
 
 @bot.event
 async def on_ready():
@@ -467,9 +467,8 @@ class CharacterView(discord.ui.View):
     def __init__(self, timeout=None):
         super().__init__(timeout=timeout)
 
-# استمارة إنشاء لوحة الرحلة (بدون أزرار تماماً)
+# استمارة إنشاء لوحة الرحلة (مع وضوح تفاصيل الهوست وإرفاق الصورة المحددة)
 class TripSetupModal(discord.ui.Modal, title='إنشاء وتثبيت لوحة الرحلة'):
-    host_name = discord.ui.TextInput(label='اسم الهوست (Host Name)', placeholder='أدخل اسم الهوست...')
     host_id = discord.ui.TextInput(label='آيدي الهوست (Host ID)', placeholder='أدخل آيدي الهوست الديسكورد...')
     co_host_id = discord.ui.TextInput(label='آيدي نائب الهوست (Co-Host ID)', placeholder='أدخل آيدي نائب الهوست...')
     trip_time = discord.ui.TextInput(label='وقت الرحلة', placeholder='مثال: 10:00 PM...')
@@ -478,51 +477,47 @@ class TripSetupModal(discord.ui.Modal, title='إنشاء وتثبيت لوحة �
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         
-        h_name = self.host_name.value.strip()
         h_id = self.host_id.value.strip()
         co_h_id = self.co_host_id.value.strip()
         t_time = self.trip_time.value.strip()
         t_monitors = self.trip_monitors.value.strip()
 
         embed = discord.Embed(
-            title="✈️ لوحة تحكم إدارة الرحلات - Gold Town",
+            title="✈️ لوحة معلومات الرحلة والتصويت",
             description=(
-                f"👤 **الهوست:** {h_name} (<@{h_id}>)\n"
-                f"🆔 **آيدي الهوست:** `{h_id}`\n"
-                f"🤝 **آيدي نائب الهوست:** `{co_h_id}` (<@{co_h_id}>)\n"
-                f"⏰ **وقت الرحلة:** `{t_time}`\n"
-                f"🛡️ **رقابي الرحلة:** {t_monitors}\n\n"
+                f"👤 **آيدي الهوست الأساسي:**\n`{h_id}`\n\n"
+                f"🤝 **آيدي نائب الهوست:**\n(<@{co_h_id}>)\n\n"
+                f"⏰ **وقت الرحلة:**\n`{t_time}`\n\n"
+                f"🛡️ **رقابي الرحلة:**\n{t_monitors}\n\n"
                 f"📜 **تعليمات هامة للرحلة:**\n"
-                f"1. يلتزم الجميع باحترام القوانين العامة وعدم المخالفة.\n"
-                f"2. يمنع منعاً باتاً التخريب أو إثارة المشاكل أثناء الرحلة.\n"
-                f"3. يرجى التأكد من تسجيل الدخول بالشخصية الصحيحة فور بدء الرحلة."
+                f"• يلتزم الجميع باحترام القوانين العامة وعدم المخالفة.\n"
+                f"• يمنع منعاً باتاً التخريب أو إثارة المشاكل أثناء الرحلة.\n"
+                f"• يرجى التأكد من تسجيل الدخول بالشخصية الصحيحة فور بدء الرحلة ليتمكن الجميع من رؤيتك والتصويت بدقة."
             ),
             color=discord.Color.from_str("#111111")
         )
-        embed.set_thumbnail(url=BLACK_IMAGE_URL)
-        embed.set_image(url=BLACK_IMAGE_URL)
+        embed.set_thumbnail(url=CUSTOM_TRIP_IMAGE)
+        embed.set_image(url=CUSTOM_TRIP_IMAGE)
         embed.set_footer(text="© Gold Town System | 2026")
 
         voting_channel = bot.get_channel(VOTING_CHANNEL_ID)
         target_channel = voting_channel if voting_channel else interaction.channel
 
-        # نشر اللوحة في روم التصويت / الروم الأساسي بدون أزرار
+        # نشر لوحة معلومات الرحلة في روم التصويت مع الصورة المخصصة
         await target_channel.send(embed=embed)
 
-        # إرسال أزرار التحكم (إعصار وتجديد وبدء الرحلة) حصراً وبشكل دائم في الروم المخصص (SPECIFIC_ROOM_ID)
-        specific_room = bot.get_channel(SPECIFIC_ROOM_ID)
-        if specific_room:
-            control_view = TripControlView()
-            control_msg = await specific_room.send("⚙️ **لوحة التحكم السريعة للرحلة (إعصار، تجديد، وبدء الرحلة):**", view=control_view)
-            try:
-                await control_msg.add_reaction("🟡")
-                await control_msg.add_reaction("👎")
-            except Exception:
-                pass
+        # إرسال أزرار التحكم (إعصار وتجديد وبدء الرحلة) في نفس روم التصويت حصراً مع تفاعل الإيموجي الذهبي
+        control_view = TripControlView()
+        control_msg = await target_channel.send("⚙️ **لوحة التحكم السريعة للرحلة (إعصار، تجديد، وبدء الرحلة):**", view=control_view)
+        try:
+            await control_msg.add_reaction("🟡")
+            await control_msg.add_reaction("👎")
+        except Exception:
+            pass
 
-        await interaction.followup.send(f"🟡 تم نشر لوحة تحكم الرحلة وإرسال أزرار التحكم إلى الروم المخصص بنجاح!", ephemeral=True)
+        await interaction.followup.send(f"🟡 تم نشر لوحة تحكم الرحلة والأزرار إلى روم التصويت بنجاح!", ephemeral=True)
 
-# استمارة تجديد الرحلة وتحديث آيدي الهوست ونائب الهوست وترسل التنبيه للروم المحدد
+# استمارة تجديد الرحلة وتحديث آيدي الهوست ونائب الهوست وترسل التنبيه لروم التصويت
 class TripRenewModal(discord.ui.Modal, title='تجديد الرحلة وتحديث الهوست'):
     new_host_id = discord.ui.TextInput(label='آيدي الهوست الجديد (Host ID)', placeholder='أدخل آيدي الهوست الجديد...')
     new_co_host_id = discord.ui.TextInput(label='آيدي نائب الهوست الجديد (Co-Host ID)', placeholder='أدخل آيدي نائب الهوست الجديد...')
@@ -536,42 +531,34 @@ class TripRenewModal(discord.ui.Modal, title='تجديد الرحلة وتحدي
         
         new_h_id = self.new_host_id.value.strip()
         new_co_h_id = self.new_co_host_id.value.strip()
-        
-        new_h_name = "Host"
-        member = interaction.guild.get_member(int(new_h_id))
-        if member:
-            new_h_name = member.display_name
 
         voting_channel = bot.get_channel(VOTING_CHANNEL_ID)
+        target_channel = voting_channel if voting_channel else interaction.channel
+
         if voting_channel:
             async for msg in voting_channel.history(limit=10):
-                if msg.embeds and "لوحة تحكم إدارة الرحلات" in msg.embeds[0].title:
+                if msg.embeds and "لوحة معلومات الرحلة والتصويت" in msg.embeds[0].title:
                     old_embed = msg.embeds[0]
                     updated_description = (
-                        f"👤 **الهوست الجديد:** {new_h_name} (<@{new_h_id}>)\n"
-                        f"🆔 **آيدي الهوست:** `{new_h_id}`\n"
-                        f"🤝 **آيدي نائب الهوست الجديد:** `{new_co_h_id}` (<@{new_co_h_id}>)\n"
-                        f"⏰ **وقت الرحلة:** تم التجديد\n\n"
+                        f"👤 **آيدي الهوست الأساسي:**\n`{new_h_id}`\n\n"
+                        f"🤝 **آيدي نائب الهوست الجديد:**\n(<@{new_co_h_id}>)\n\n"
+                        f"⏰ **وقت الرحلة:**\nتم التجديد\n\n"
                         f"📜 **تعليمات هامة للرحلة:**\n"
-                        f"1. يلتزم الجميع باحترام القوانين العامة وعدم المخالفة.\n"
-                        f"2. يمنع منعاً باتاً التخريب أو إثارة المشاكل أثناء الرحلة.\n"
-                        f"3. يرجى التأكد من تسجيل الدخول بالشخصية الصحيحة فور بدء الرحلة.\n\n"
-                        f"🔄 **تم تجديد الرحلة وتحديث الهوست بواسطة:** {interaction.user.mention}"
+                        f"• يلتزم الجميع باحترام القوانين العامة وعدم المخالفة.\n"
+                        f"• يمنع منعاً باتاً التخريب أو إثارة المشاكل أثناء الرحلة.\n"
+                        f"• يرجى التأكد من تسجيل الدخول بالشخصية الصحيحة فور بدء الرحلة ليتمكن الجميع من رؤيتك والتصويت بدقة.\n\n"
+                        f"🔄 **تم تجديد الرحلة بواسطة:** {interaction.user.mention}"
                     )
                     old_embed.description = updated_description
                     await msg.edit(embed=old_embed)
                     break
 
-        # إرسال رسالة التجديد إلى الروم المحدد حصراً (SPECIFIC_ROOM_ID)
-        specific_room = bot.get_channel(SPECIFIC_ROOM_ID)
-        target_channel = specific_room if specific_room else interaction.channel
-
-        await target_channel.send(f"🔔 🔄 **تنبيه الرحلة:** تم **تجديد** الرحلة وتعيين هوست جديد (<@{new_h_id}>) ونائب هوست جديد (<@{new_co_h_id}>).")
-        await interaction.followup.send(f"🟡 تم تجديد الرحلة وتحديث الهوست ونائب الهوست بنجاح، وإرسال التنبيه إلى الروم المخصص!", ephemeral=True)
+        await target_channel.send(f"🔔 🔄 **تنبيه الرحلة:** تم **تجديد** الرحلة وتعيين هوست جديد (`{new_h_id}`) ونائب هوست جديد (<@{new_co_h_id}>).")
+        await interaction.followup.send(f"🟡 تم تجديد الرحلة وتحديث الهوست ونائب الهوست بنجاح وإرسال التنبيه إلى روم التصويت!", ephemeral=True)
 
 class TripControlView(discord.ui.View):
     def __init__(self):
-        super().__init__(timeout=None) # الأزرار لا تختفي نهائياً وتبقى فعالة
+        super().__init__(timeout=None)
 
     @discord.ui.button(label="بدء رحلة", style=discord.ButtonStyle.green, custom_id="start_trip_permanent_btn")
     async def start_trip(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -582,11 +569,10 @@ class TripControlView(discord.ui.View):
         global current_trip_status
         current_trip_status = True
         
-        # إرسال تنبيه البدء والتصويت إلى الروم المحدد (SPECIFIC_ROOM_ID) فور الضغط على الزر مع تفاعل الإيموجي الذهبي
-        specific_room = bot.get_channel(SPECIFIC_ROOM_ID)
-        target_channel = specific_room if specific_room else interaction.channel
+        voting_channel = bot.get_channel(VOTING_CHANNEL_ID)
+        target_channel = voting_channel if voting_channel else interaction.channel
 
-        await interaction.response.send_message("🟡 تم بدء الرحلة بنجاح وإرسال رسالة التصويت إلى الروم المحدد!", ephemeral=True)
+        await interaction.response.send_message("🟡 تم بدء الرحلة بنجاح وإرسال رسالة التصويت إلى روم التصويت!", ephemeral=True)
         
         poll_msg = await target_channel.send("🟢 **تنبيه الرحلة:** تم بدء الرحلة بنجاح! متاح الآن للجميع تسجيل الدخول بشخصياتهم.\n📊 **تصويت الرحلة:** هل أنت مستعد للرحلة؟ تفاعل بـ (🟡 / 👎)")
         try:
@@ -601,10 +587,10 @@ class TripControlView(discord.ui.View):
             await interaction.response.send_message("ليس لديك الصلاحية لاستخدام هذه الأزرار.", ephemeral=True)
             return
         
-        specific_room = bot.get_channel(SPECIFIC_ROOM_ID)
-        target_channel = specific_room if specific_room else interaction.channel
+        voting_channel = bot.get_channel(VOTING_CHANNEL_ID)
+        target_channel = voting_channel if voting_channel else interaction.channel
 
-        await interaction.response.send_message("⚠️ تم إرسال تنبيه الإعصار إلى الروم المخصص بنجاح.", ephemeral=True)
+        await interaction.response.send_message("⚠️ تم إرسال تنبيه الإعصار إلى روم التصويت بنجاح.", ephemeral=True)
         await target_channel.send("🔔 ⚠️ **تنبيه طارئ:** حالة **إعصار** للرحلة الحالية! يرجى توخي الحذر.")
 
     @discord.ui.button(label="تجديد", style=discord.ButtonStyle.blurple, custom_id="renew_permanent_btn")
@@ -615,7 +601,6 @@ class TripControlView(discord.ui.View):
         
         await interaction.response.send_modal(TripRenewModal(interaction.message))
 
-# قائمة منسدلة لإدخال بيانات الرحلة
 class TripSetupSelect(discord.ui.Select):
     def __init__(self):
         options = [
