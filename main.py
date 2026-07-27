@@ -47,6 +47,7 @@ LOG_CHANNEL_ID = 1530791985131032656
 TARGET_VERIFY_CHANNEL_ID = 1530770263598301225
 VOTING_CHANNEL_ID = 1531068507050217616  
 SPECIFIC_ROOM_ID = 1530770307357343895    
+TARGET_ACTION_ROOM_ID = 1530770304056557751  # روم إرسال إشعارات الإعصار والتجديد
 REQUIRED_ROLE_NAME = "GT | Trip Support"
 
 BLACK_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop"
@@ -501,7 +502,6 @@ class TripSetupModal(discord.ui.Modal, title='إنشاء وتثبيت لوحة �
         voting_channel = bot.get_channel(SPECIFIC_ROOM_ID)
         target_channel = voting_channel if voting_channel else interaction.channel
 
-        # إرسال لوحة المعلومات مع تفاعل تفاعل التصويت (🟡) مباشرة على اللوحة في روم التصويت
         poll_msg = await target_channel.send(embed=embed)
         try:
             await poll_msg.add_reaction("🟡")
@@ -514,42 +514,37 @@ class TripRenewModal(discord.ui.Modal, title='تجديد الرحلة وتحدي
     new_host_id = discord.ui.TextInput(label='آيدي الهوست الجديد (Host ID)', placeholder='أدخل آيدي الهوست الجديد...')
     new_co_host_id = discord.ui.TextInput(label='آيدي نائب الهوست الجديد (Co-Host ID)', placeholder='أدخل آيدي نائب الهوست الجديد...')
 
-    def __init__(self, message):
-        super().__init__()
-        self.message = message
-
     async def on_submit(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
         
         new_h_id = self.new_host_id.value.strip()
         new_co_h_id = self.new_co_host_id.value.strip()
 
-        voting_channel = bot.get_channel(SPECIFIC_ROOM_ID)
+        # إرسال إيمبد تجديد الرحلة إلى الروم المحدد (TARGET_ACTION_ROOM_ID) بطريقة احترافية مثل الصور
+        action_channel = bot.get_channel(TARGET_ACTION_ROOM_ID)
+        target_channel = action_channel if action_channel else interaction.channel
 
-        if voting_channel:
-            async for msg in voting_channel.history(limit=10):
-                if msg.embeds and "لوحة معلومات الرحلة والتصويت" in msg.embeds[0].title:
-                    old_embed = msg.embeds[0]
-                    updated_description = (
-                        f"👤 **آيدي الهوست الأساسي:**\n`{new_h_id}` (<@{new_h_id}>)\n\n"
-                        f"🤝 **آيدي نائب الهوست الجديد:**\n`{new_co_h_id}` (<@{new_co_h_id}>)\n\n"
-                        f"⏰ **وقت الرحلة:**\nتم التجديد\n\n"
-                        f"📜 **تعليمات هامة للرحلة:**\n"
-                        f"• يلتزم الجميع باحترام القوانين العامة وعدم المخالفة.\n"
-                        f"• يمنع منعاً باتاً التخريب أو إثارة المشاكل أثناء الرحلة.\n"
-                        f"• يرجى التأكد من تسجيل الدخول بالشخصية الصحيحة فور بدء الرحلة ليتمكن الجميع من رؤيتك والتصويت بدقة.\n\n"
-                        f"🔄 **تم تجديد الرحلة بواسطة:** {interaction.user.mention}"
-                    )
-                    old_embed.description = updated_description
-                    old_embed.set_image(url=CUSTOM_TRIP_IMAGE)
-                    await msg.edit(embed=old_embed)
-                    break
+        embed_renew = discord.Embed(
+            title="Effect King's ( Renew Trip )",
+            description=(
+                f"• **إشعار تجديد رحلة**\n"
+                f"  ◦ **هناك تجديد رحلة متاح الان**\n"
+                f"  ◦ **الرجاء من الجميع وضع خيار Last (Location)**\n"
+                f"  ◦ **ثم الخروج من الرحلة والدخول على الجديدة**\n"
+                f"  ◦ **ايدي الهوست |** `{new_h_id}` (<@{new_h_id}>)\n"
+                f"  ◦ **ايدي نائب الهوست |** `{new_co_h_id}` (<@{new_co_h_id}>)"
+            ),
+            color=discord.Color.from_str("#111111")
+        )
+        embed_renew.set_image(url=CUSTOM_TRIP_IMAGE)
+        embed_renew.set_footer(text="© Effect Kings System | 2026")
 
-        await interaction.followup.send(f"🟡 تم تجديد الرحلة وتحديث الهوست ونائب الهوست في لوحة روم التصويت بنجاح!", ephemeral=True)
+        await target_channel.send(embed=embed_renew)
+        await interaction.followup.send(f"🟡 تم إرسال إشعار تجديد الرحلة إلى الروم المحدد بنجاح!", ephemeral=True)
 
 class TripControlView(discord.ui.View):
     def __init__(self):
-        super().__init__(timeout=None)
+        super().__init__(timeout=None) # الأزرار تظل ثابتة ولا تختفي أبداً
 
     @discord.ui.button(label="إدخال بيانات الرحلة", style=discord.ButtonStyle.secondary, emoji="✈️", custom_id="setup_trip_modal_btn", row=0)
     async def setup_trip_button(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -575,11 +570,28 @@ class TripControlView(discord.ui.View):
             await interaction.response.send_message("ليس لديك الصلاحية لاستخدام هذه الأزرار.", ephemeral=True)
             return
         
-        voting_channel = bot.get_channel(SPECIFIC_ROOM_ID)
-        target_channel = voting_channel if voting_channel else interaction.channel
+        # إرسال إيمبد إعصار احترافي ومتكامل إلى الروم المحدد (TARGET_ACTION_ROOM_ID)
+        action_channel = bot.get_channel(TARGET_ACTION_ROOM_ID)
+        target_channel = action_channel if action_channel else interaction.channel
 
-        await interaction.response.send_message("⚠️ تم إرسال تنبيه الإعصار إلى روم التصويت بنجاح.", ephemeral=True)
-        await target_channel.send("🔔 ⚠️ **تنبيه طارئ:** حالة **إعصار** للرحلة الحالية! يرجى توخي الحذر.")
+        embed_tornado = discord.Embed(
+            title="Effect King's ( Close Game )",
+            description=(
+                f"📢 **| اشعار اعصار**\n\n"
+                f"🏙️ **| يوجد اعصار ، نتمنى من الجميع الخروج من الرحله ، رحله كانت ممتعة و نعوضكم في الرحلات القادمه بأذن الله .**\n\n"
+                f"🛑 **| تعليمات الاعصار :**\n"
+                f"  — **يُمنع التفجير او التخريب .**\n"
+                f"  — **يجب عليك التلفيت فوراً بعد الاعصار .**\n"
+                f"  — **في حال واجهت مشكله افتح تكت دعم فني | Tickets .**\n\n"
+                f"🤍 **| شكراً لكم .**"
+            ),
+            color=discord.Color.from_str("#111111")
+        )
+        embed_tornado.set_image(url=CUSTOM_TRIP_IMAGE)
+        embed_tornado.set_footer(text="© Effect Kings System | 2026")
+
+        await target_channel.send(embed=embed_tornado)
+        await interaction.response.send_message("⚠️ تم إرسال تنبيه الإعصار (الإيمبد) إلى الروم المحدد بنجاح.", ephemeral=True)
 
     @discord.ui.button(label="تجديد", style=discord.ButtonStyle.blurple, custom_id="renew_permanent_btn", row=1)
     async def renew_action(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -587,7 +599,7 @@ class TripControlView(discord.ui.View):
             await interaction.response.send_message("ليس لديك الصلاحية لاستخدام هذه الأزرار.", ephemeral=True)
             return
         
-        await interaction.response.send_modal(TripRenewModal(interaction.message))
+        await interaction.response.send_modal(TripRenewModal())
 
 @bot.command(name="trip")
 async def trip_command(ctx):
@@ -601,7 +613,7 @@ async def trip_command(ctx):
         pass
     
     view = TripControlView()
-    await ctx.send("✈️ **لوحة التحكم السريعة للرحلة (إدخال البيانات، بدء، تجديد، وإعصار):**", view=view, delete_after=30)
+    await ctx.send("✈️ **لوحة التحكم السريعة للرحلة (إدخال البيانات، بدء، تجديد، وإعصار):**", view=view)
 
 @bot.command(name="character")
 async def character_command(ctx):
