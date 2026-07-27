@@ -51,7 +51,6 @@ REQUIRED_ROLE_NAME = "GT | Trip Support"
 
 BLACK_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop"
 CUSTOM_TRIP_IMAGE = "https://cdn.discordapp.com/attachments/1530770338319827046/1531089283333750824/IMG__.jpg?ex=6a67f183&is=6a66a003&hm=b42a4d387f6535474e956f3a206d4213d5f22739f2180b2981d56fb309a63e3f&"
-# الصورة الصحيحة الخاصة بلوحة إدارة الشخصيات بناءً على طلبك
 CHARACTER_SYSTEM_IMAGE = "https://cdn.discordapp.com/attachments/1530770338319827046/1531089283333750824/IMG__.jpg?ex=6a67f183&is=6a66a003&hm=b42a4d387f6535474e956f3a206d4213d5f22739f2180b2981d56fb309a63e3f&"
 
 @bot.event
@@ -497,14 +496,12 @@ class TripSetupModal(discord.ui.Modal, title='إنشاء وتثبيت لوحة �
             ),
             color=discord.Color.from_str("#111111")
         )
-        embed.set_thumbnail(url=CUSTOM_TRIP_IMAGE)
-        embed.set_image(url=CUSTOM_TRIP_IMAGE)
-        embed.set_footer(text="© Gold Town System | 2026")
-
+        
         voting_channel = bot.get_channel(VOTING_CHANNEL_ID)
         target_channel = voting_channel if voting_channel else interaction.channel
 
         await target_channel.send(embed=embed)
+        await target_channel.send(CUSTOM_TRIP_IMAGE)
 
         control_view = TripControlView()
         control_msg = await target_channel.send("⚙️ **لوحة التحكم السريعة للرحلة (إعصار، تجديد، وبدء الرحلة):**", view=control_view)
@@ -637,22 +634,27 @@ async def character_command(ctx):
         pass
         
     embed = discord.Embed(title="Character Management", description="Character Creation, Login & Logout System", color=discord.Color.from_str("#111111"))
-    # تم تحديث الصورة هنا لتصبح الصورة الصحيحة التي طلبتها
-    embed.set_image(url=CHARACTER_SYSTEM_IMAGE)
     
     view = CharacterView()
     view.add_item(CharacterSelect())
+    
     await ctx.send(embed=embed, view=view)
+    await ctx.send(CHARACTER_SYSTEM_IMAGE)
 
 @bot.command(name="forge")
 async def forge_command(ctx):
+    try:
+        await ctx.message.delete()
+    except Exception:
+        pass
+
     user_id = ctx.author.id
     c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (user_id,))
     players = c.fetchall()
     if players:
         embed_forge = discord.Embed(title="Forgery System", description="اختر الشخصية التي تريد تزويرها من القائمة أدناه:", color=discord.Color.from_str("#111111"))
-        embed_forge.set_image(url=CHARACTER_SYSTEM_IMAGE)
         await ctx.send(embed=embed_forge, view=ForgeSelectView(players))
+        await ctx.send(CHARACTER_SYSTEM_IMAGE)
     else:
         await ctx.send("❌ ليس لديك أي شخصيات مسجلة لتزويرها!", delete_after=5)
 
@@ -669,4 +671,4 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
-
+ 
