@@ -501,8 +501,14 @@ class TripSetupModal(discord.ui.Modal, title='إنشاء وتثبيت لوحة �
         voting_channel = bot.get_channel(SPECIFIC_ROOM_ID)
         target_channel = voting_channel if voting_channel else interaction.channel
 
-        await target_channel.send(embed=embed)
-        await interaction.followup.send(f"🟡 تم نشر لوحة معلومات الرحلة إلى روم التصويت بنجاح!", ephemeral=True)
+        # إرسال لوحة المعلومات مع تفاعل تفاعل التصويت (🟡) مباشرة على اللوحة في روم التصويت
+        poll_msg = await target_channel.send(embed=embed)
+        try:
+            await poll_msg.add_reaction("🟡")
+        except Exception:
+            pass
+
+        await interaction.followup.send(f"🟡 تم نشر لوحة معلومات الرحلة والتصويت في روم التصويت بنجاح!", ephemeral=True)
 
 class TripRenewModal(discord.ui.Modal, title='تجديد الرحلة وتحديث الهوست'):
     new_host_id = discord.ui.TextInput(label='آيدي الهوست الجديد (Host ID)', placeholder='أدخل آيدي الهوست الجديد...')
@@ -519,7 +525,6 @@ class TripRenewModal(discord.ui.Modal, title='تجديد الرحلة وتحدي
         new_co_h_id = self.new_co_host_id.value.strip()
 
         voting_channel = bot.get_channel(SPECIFIC_ROOM_ID)
-        target_channel = voting_channel if voting_channel else interaction.channel
 
         if voting_channel:
             async for msg in voting_channel.history(limit=10):
@@ -540,8 +545,7 @@ class TripRenewModal(discord.ui.Modal, title='تجديد الرحلة وتحدي
                     await msg.edit(embed=old_embed)
                     break
 
-        await target_channel.send(f"🔔 🔄 **تنبيه الرحلة:** تم **تجديد** الرحلة وتعيين هوست جديد (`{new_h_id}`) ونائب هوست جديد (`{new_co_h_id}`).")
-        await interaction.followup.send(f"🟡 تم تجديد الرحلة وتحديث الهوست ونائب الهوست بنجاح وإرسال التنبيه إلى روم التصويت!", ephemeral=True)
+        await interaction.followup.send(f"🟡 تم تجديد الرحلة وتحديث الهوست ونائب الهوست في لوحة روم التصويت بنجاح!", ephemeral=True)
 
 class TripControlView(discord.ui.View):
     def __init__(self):
@@ -563,16 +567,7 @@ class TripControlView(discord.ui.View):
         global current_trip_status
         current_trip_status = True
         
-        voting_channel = bot.get_channel(SPECIFIC_ROOM_ID)
-        target_channel = voting_channel if voting_channel else interaction.channel
-
-        await interaction.response.send_message("🟡 تم بدء الرحلة بنجاح وإرسال رسالة التصويت إلى روم التصويت المحدد!", ephemeral=True)
-        
-        poll_msg = await target_channel.send("🟢 **تنبيه الرحلة:** تم بدء الرحلة بنجاح! متاح الآن للجميع تسجيل الدخول بشخصياتهم.\n📊 **تصويت الرحلة:** هل أنت مستعد للرحلة؟ تفاعل بـ (🟡)")
-        try:
-            await poll_msg.add_reaction("🟡")
-        except Exception:
-            pass
+        await interaction.response.send_message("🟢 تم بدء الرحلة بنجاح وأصبح متاحاً للجميع تسجيل الدخول بشخصياتهم.", ephemeral=True)
 
     @discord.ui.button(label="إعصار", style=discord.ButtonStyle.red, custom_id="tornado_permanent_btn", row=1)
     async def tornado_action(self, interaction: discord.Interaction, button: discord.ui.Button):
