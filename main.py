@@ -496,12 +496,12 @@ class TripSetupModal(discord.ui.Modal, title='إنشاء وتثبيت لوحة �
             ),
             color=discord.Color.from_str("#111111")
         )
+        embed.set_image(url=CUSTOM_TRIP_IMAGE)
         
         voting_channel = bot.get_channel(VOTING_CHANNEL_ID)
         target_channel = voting_channel if voting_channel else interaction.channel
 
         await target_channel.send(embed=embed)
-        await target_channel.send(CUSTOM_TRIP_IMAGE)
 
         control_view = TripControlView()
         control_msg = await target_channel.send("⚙️ **لوحة التحكم السريعة للرحلة (إعصار، تجديد، وبدء الرحلة):**", view=control_view)
@@ -544,6 +544,7 @@ class TripRenewModal(discord.ui.Modal, title='تجديد الرحلة وتحدي
                         f"🔄 **تم تجديد الرحلة بواسطة:** {interaction.user.mention}"
                     )
                     old_embed.description = updated_description
+                    old_embed.set_image(url=CUSTOM_TRIP_IMAGE)
                     await msg.edit(embed=old_embed)
                     break
 
@@ -634,12 +635,12 @@ async def character_command(ctx):
         pass
         
     embed = discord.Embed(title="Character Management", description="Character Creation, Login & Logout System", color=discord.Color.from_str("#111111"))
+    embed.set_image(url=CHARACTER_SYSTEM_IMAGE)
     
     view = CharacterView()
     view.add_item(CharacterSelect())
     
     await ctx.send(embed=embed, view=view)
-    await ctx.send(CHARACTER_SYSTEM_IMAGE)
 
 @bot.command(name="forge")
 async def forge_command(ctx):
@@ -653,8 +654,8 @@ async def forge_command(ctx):
     players = c.fetchall()
     if players:
         embed_forge = discord.Embed(title="Forgery System", description="اختر الشخصية التي تريد تزويرها من القائمة أدناه:", color=discord.Color.from_str("#111111"))
+        embed_forge.set_image(url=CHARACTER_SYSTEM_IMAGE)
         await ctx.send(embed=embed_forge, view=ForgeSelectView(players))
-        await ctx.send(CHARACTER_SYSTEM_IMAGE)
     else:
         await ctx.send("❌ ليس لديك أي شخصيات مسجلة لتزويرها!", delete_after=5)
 
