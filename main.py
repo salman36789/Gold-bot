@@ -485,8 +485,8 @@ class TripSetupModal(discord.ui.Modal, title='إنشاء وتثبيت لوحة �
         embed = discord.Embed(
             title="✈️ لوحة معلومات الرحلة والتصويت",
             description=(
-                f"👤 **آيدي الهوست الأساسي:**\n`{h_id}`\n\n"
-                f"🤝 **آيدي نائب الهوست:**\n(<@{co_h_id}>)\n\n"
+                f"👤 **آيدي الهوست الأساسي:**\n`{h_id}` (<@{h_id}>)\n\n"
+                f"🤝 **آيدي نائب الهوست:**\n`{co_h_id}` (<@{co_h_id}>)\n\n"
                 f"⏰ **وقت الرحلة:**\n`{t_time}`\n\n"
                 f"🛡️ **رقابي الرحلة:**\n{t_monitors}\n\n"
                 f"📜 **تعليمات هامة للرحلة:**\n"
@@ -506,12 +506,11 @@ class TripSetupModal(discord.ui.Modal, title='إنشاء وتثبيت لوحة �
         # نشر لوحة معلومات الرحلة في روم التصويت مع الصورة المخصصة
         await target_channel.send(embed=embed)
 
-        # إرسال أزرار التحكم (إعصار وتجديد وبدء الرحلة) في نفس روم التصويت حصراً مع تفاعل الإيموجي الذهبي
+        # إرسال أزرار التحكم (إعصار وتجديد وبدء الرحلة) في نفس روم التصويت حصراً مع تفاعل الإيموجي الذهبي فقط
         control_view = TripControlView()
         control_msg = await target_channel.send("⚙️ **لوحة التحكم السريعة للرحلة (إعصار، تجديد، وبدء الرحلة):**", view=control_view)
         try:
             await control_msg.add_reaction("🟡")
-            await control_msg.add_reaction("👎")
         except Exception:
             pass
 
@@ -540,8 +539,8 @@ class TripRenewModal(discord.ui.Modal, title='تجديد الرحلة وتحدي
                 if msg.embeds and "لوحة معلومات الرحلة والتصويت" in msg.embeds[0].title:
                     old_embed = msg.embeds[0]
                     updated_description = (
-                        f"👤 **آيدي الهوست الأساسي:**\n`{new_h_id}`\n\n"
-                        f"🤝 **آيدي نائب الهوست الجديد:**\n(<@{new_co_h_id}>)\n\n"
+                        f"👤 **آيدي الهوست الأساسي:**\n`{new_h_id}` (<@{new_h_id}>)\n\n"
+                        f"🤝 **آيدي نائب الهوست الجديد:**\n`{new_co_h_id}` (<@{new_co_h_id}>)\n\n"
                         f"⏰ **وقت الرحلة:**\nتم التجديد\n\n"
                         f"📜 **تعليمات هامة للرحلة:**\n"
                         f"• يلتزم الجميع باحترام القوانين العامة وعدم المخالفة.\n"
@@ -553,7 +552,7 @@ class TripRenewModal(discord.ui.Modal, title='تجديد الرحلة وتحدي
                     await msg.edit(embed=old_embed)
                     break
 
-        await target_channel.send(f"🔔 🔄 **تنبيه الرحلة:** تم **تجديد** الرحلة وتعيين هوست جديد (`{new_h_id}`) ونائب هوست جديد (<@{new_co_h_id}>).")
+        await target_channel.send(f"🔔 🔄 **تنبيه الرحلة:** تم **تجديد** الرحلة وتعيين هوست جديد (`{new_h_id}`) ونائب هوست جديد (`{new_co_h_id}`).")
         await interaction.followup.send(f"🟡 تم تجديد الرحلة وتحديث الهوست ونائب الهوست بنجاح وإرسال التنبيه إلى روم التصويت!", ephemeral=True)
 
 class TripControlView(discord.ui.View):
@@ -574,10 +573,9 @@ class TripControlView(discord.ui.View):
 
         await interaction.response.send_message("🟡 تم بدء الرحلة بنجاح وإرسال رسالة التصويت إلى روم التصويت!", ephemeral=True)
         
-        poll_msg = await target_channel.send("🟢 **تنبيه الرحلة:** تم بدء الرحلة بنجاح! متاح الآن للجميع تسجيل الدخول بشخصياتهم.\n📊 **تصويت الرحلة:** هل أنت مستعد للرحلة؟ تفاعل بـ (🟡 / 👎)")
+        poll_msg = await target_channel.send("🟢 **تنبيه الرحلة:** تم بدء الرحلة بنجاح! متاح الآن للجميع تسجيل الدخول بشخصياتهم.\n📊 **تصويت الرحلة:** هل أنت مستعد للرحلة؟ تفاعل بـ (🟡)")
         try:
             await poll_msg.add_reaction("🟡")
-            await poll_msg.add_reaction("👎")
         except Exception:
             pass
 
