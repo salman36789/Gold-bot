@@ -702,7 +702,7 @@ class CreateBankAccountModal(discord.ui.Modal, title='إنشاء حساب بنك
             embed_dm.set_footer(text="© Effect Kings System | 2026")
             await interaction.user.send(embed=embed_dm)
             
-            embed_success = discord.Embed(title="✅ - Success", description="تم إنشاء حسابك البنكي وإرسال تفاصيل الحساب إلى رسائلك الخاصة (DM)!", color=discord.Color.green())
+            embed_success = discord.Embed(title="✅ - Success", description="تم إنشاء حسابك بنجاح وإرسال تفاصيل الحساب إلى رسائلك الخاصة (DM)!", color=discord.Color.green())
             await interaction.followup.send(embed=embed_success, ephemeral=True)
         except Exception:
             embed_warn = discord.Embed(title="⚠️ - Warning", description="تم إنشاء حسابك بنجاح، ولكن تعذر إرسال الرسالة الخاصة تأكد من فتح رسائلك الخاصة (DM).", color=discord.Color.orange())
@@ -717,7 +717,38 @@ async def trip_command(ctx):
         await ctx.message.delete()
     except Exception:
         pass
-    await ctx.send("✈️ **لوحة التحكم السريعة للرحلة:**")
+    
+    class TripControlView(discord.ui.View):
+        def __init__(self):
+            super().__init__(timeout=None)
+
+        @discord.ui.button(label="فتح الرحلة", style=discord.ButtonStyle.success, emoji="🟢")
+        async def open_trip(self, interaction: discord.Interaction, button: discord.ui.Button):
+            global current_trip_status
+            if not has_trip_permission(interaction.user):
+                await interaction.response.send_message("❌ ليس لديك صلاحية للتحكم بالرحلة.", ephemeral=True)
+                return
+            current_trip_status = True
+            
+            c.execute("INSERT INTO trips (discord_id, status) VALUES (?, ?)", (interaction.user.id, "opened"))
+            conn.commit()
+            
+            await interaction.response.send_message("🟢 **تم فتح الرحلة بنجاح!** يمكن الآن للاعبين تسجيل الدخول بشخصياتهم.", ephemeral=True)
+
+        @discord.ui.button(label="إغلاق الرحلة", style=discord.ButtonStyle.danger, emoji="🔴")
+        async def close_trip(self, interaction: discord.Interaction, button: discord.ui.Button):
+            global current_trip_status
+            if not has_trip_permission(interaction.user):
+                await interaction.response.send_message("❌ ليس لديك صلاحية للتحكم بالرحلة.", ephemeral=True)
+                return
+            current_trip_status = الظن = False
+            
+            c.execute("INSERT INTO trips (discord_id, status) VALUES (?, ?)", (interaction.user.id, "closed"))
+            conn.commit()
+            
+            await interaction.response.send_message("🔴 **تم إغلاق الرحلة بنجاح!**", ephemeral=True)
+
+    await ctx.send("✈️ **لوحة التحكم السريعة للرحلة:**", view=TripControlView())
 
 @bot.command(name="character")
 async def character_command(ctx):
