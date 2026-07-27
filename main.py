@@ -502,7 +502,7 @@ class CharacterSelect(discord.ui.Select):
             if players:
                 await interaction.followup.send("Choose a character you want to join with", view=LoginSelectView(players), ephemeral=True)
             else:
-                await interaction.followup.send("❌ ليس لديك أي شخصيات مسجلة لتسجيل الدخول بها!", ephemeral=True)
+                await interaction.followup.send("❌ ليس لديك أي شخصيات مسجلة لت تسجيل الدخول بها!", ephemeral=True)
         elif self.values[0] == "Logout":
             c.execute("SELECT identity_id, first_name, last_name FROM players WHERE discord_id = ?", (user_id,))
             players = c.fetchall()
@@ -655,7 +655,162 @@ class TripControlView(discord.ui.View):
         
         await interaction.response.send_modal(TripRenewModal())
 
-# ==================== (أوامر وأنظمة البنك المدمجة) ====================
+# ==================== (أنظمة البنك المتقدمة والقوائم) ====================
+
+class DepositModal(discord.ui.Modal, title='إيداع أموال في البنك'):
+    amount = discord.ui.TextInput(label='المبلغ المراد إيداعه', placeholder='أدخل المبلغ بالأرقام...')
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        try:
+            deposit_amount = int(self.amount.value.strip())
+            if deposit_amount <= 0:
+                raise ValueError()
+        except ValueError:
+            await interaction.followup.send("❌ الرجاء إدخال رقم صحيح للمبلغ!", ephemeral=True)
+            return
+
+        user_id = interaction.user.id
+        
+        # جلب أول شخصية نشطة للاعب لمعرفة الكاش
+        c.execute("SELECT id, balance FROM players WHERE discord_id = ? ORDER BY id ASC LIMIT 1", (user_id,))
+        player = c.fetchone()
+        
+        if not player:
+            await interaction.followup.send("❌ ليس لديك أي شخصية مسجلة لتسحب منها الكاش!", ephemeral=True)
+            return
+        
+        player_db_id, player_cash = player[0], player[1]
+
+        if deposit_amount > player_cash:
+            await interaction.followup.send("❌ ماعندك أموال كافيه في الكاش!", ephemeral=True)
+            return
+
+        # خصم المبلغ من الكاش وإضافته للبنك
+        c.execute("UPDATE players SET balance = balance - ? WHERE id = ?", (deposit_amount, player_db_id))
+        c.execute("UPDATE bank_accounts SET balance = balance + ? WHERE discord_id = ?", (deposit_amount, user_id))
+        conn.commit()
+
+        embed = discord.Embed(
+            title="📥 - Deposit Success",
+            description=f"✅ تم إيداع مبلغ `{deposit_amount} $` بنجاح إلى حسابك البنكي!",
+            color=discord.Color.green()
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+class WithdrawModal(discord.ui.Modal, title='سحب أموال من البنك'):
+    amount = discord.ui.TextInput(label='المبلغ المراد سحبه', placeholder='أدخل المبلغ بالأرقام...')
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        try:
+            withdraw_amount = int(self.amount.value.strip())
+            if withdraw_amount <= 0:
+                raise ValueError()
+        except ValueError:
+            await interaction.followup.send("❌ الرجاء إدخال رقم صحيح للمبلغ!", ephemeral=True)
+            return
+
+        user_id = interaction.user.id
+        
+        c.execute("SELECT balance FROM bank_accounts WHERE discord_id = ?", (user_id,))
+        bank_row = c.fetchone()
+        if not bank_row:
+            await interaction.followup.send("❌ ليس لديك حساب بنكي!", ephemeral=True)
+            return
+        
+        bank_balance = bank_row[0]
+
+        if withdraw_amount > bank_balance:
+            await interaction.followup.send("❌ فلوسك ماتكفي الي في البنك!", ephemeral=True)
+            return
+
+        c.execute("SELECT id FROM players WHERE discord_id = ? ORDER BY id ASC LIMIT 1", (user_id,))
+        player = c.fetchone()
+        if not player:
+            await interaction.followup.send("❌ ليس لديك شخصية لتضيف إليها الكاش المسحوب!", ephemeral=True)
+            return
+        
+        player_db_id = player[0]
+
+        # خصم من البنك وإضافة للكاش
+        c.execute("UPDATE bank_accounts SET balance = balance - ? WHERE discord_id = ?", (withdraw_amount, user_id))
+        c.execute("UPDATE players SET balance = balance + ? WHERE id = ?", (withdraw_amount, player_db_id))
+        conn.commit()
+
+        embed = discord.Embed(
+            title="📤 - Withdraw Success",
+            description=f"✅ تم سحب مبلغ `{withdraw_amount} $` بنجاح وإضافته إلى كاش شخصيتك!",
+            color=discord.Color.green()
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+class TransferModal(discord.ui.Modal, title='تحويل أموال لحساب آخر'):
+    target_id = discord.ui.TextInput(label='آيبان المستلم أو رقم الهوية', placeholder='أدخل IBAN أو رقم هوية المستلم...')
+    amount = discord.ui.TextInput(label='المبلغ المراد تحويله', placeholder='أدخل المبلغ بالأرقام...')
+
+    async def on_submit(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True)
+        target_input = self.target_id.value.strip()
+        try:
+            transfer_amount = int(self.amount.value.strip())
+            if transfer_amount <= 0:
+                raise ValueError()
+        except ValueError:
+            await interaction.followup.send("❌ الرجاء إدخال رقم صحيح للمبلغ!", ephemeral=True)
+            return
+
+        sender_id = interaction.user.id
+
+        # فحص رصيد المرسل في البنك
+        c.execute("SELECT balance FROM bank_accounts WHERE discord_id = ?", (sender_id,))
+        sender_bank = c.fetchone()
+        if not sender_bank:
+            await interaction.followup.send("❌ ليس لديك حساب بنكي!", ephemeral=True)
+            return
+        
+        if transfer_amount > sender_bank[0]:
+            await interaction.followup.send("❌ رصيدك في البنك لا يكفي لإتمام عملية التحويل!", ephemeral=True)
+            return
+
+        # البحث عن المستلم إما عن طريق الآيبان أو رقم الهوية
+        recipient_discord_id = None
+        
+        # محاولة البحث كـ آيبان بنكي
+        c.execute("SELECT discord_id FROM bank_accounts WHERE iban = ?", (target_input,))
+        rec_acc = c.fetchone()
+        if rec_acc:
+            recipient_discord_id = rec_acc[0]
+        else:
+            # محاولة البحث برقم الهوية الشخصية
+            try:
+                identity_num = int(target_input)
+                c.execute("SELECT discord_id FROM players WHERE identity_id = ?", (identity_num,))
+                rec_player = c.fetchone()
+                if rec_player:
+                    recipient_discord_id = rec_player[0]
+            except ValueError:
+                pass
+
+        if not recipient_discord_id:
+            await interaction.followup.send("❌ لم يتم العثور على حساب أو هوية بهذا الرقم أو الآيبان!", ephemeral=True)
+            return
+
+        if recipient_discord_id == sender_id:
+            await interaction.followup.send("❌ لا يمكنك التحويل لنفسك!", ephemeral=True)
+            return
+
+        # تنفيذ عملية التحويل
+        c.execute("UPDATE bank_accounts SET balance = balance - ? WHERE discord_id = ?", (transfer_amount, sender_id))
+        c.execute("UPDATE bank_accounts SET balance = balance + ? WHERE discord_id = ?", (transfer_amount, recipient_discord_id))
+        conn.commit()
+
+        embed = discord.Embed(
+            title="🔄 - Transfer Success",
+            description=f"✅ تم تحويل مبلغ `{transfer_amount} $` بنجاح إلى الحساب المستهدف!",
+            color=discord.Color.green()
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 class ChangeDataView(discord.ui.View):
     def __init__(self):
@@ -749,18 +904,27 @@ class BankServicesView(discord.ui.View):
 
     @discord.ui.button(label="Transfer", style=discord.ButtonStyle.success, emoji="🏦", row=0)
     async def transfer_money(self, interaction: discord.Interaction, button: discord.ui.Button):
-        embed = discord.Embed(title="🔄 - Transfer", description="ميزة التحويل قيد التفعيل...", color=discord.Color.from_str("#111111"))
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        c.execute("SELECT 1 FROM bank_accounts WHERE discord_id = ?", (interaction.user.id,))
+        if not c.fetchone():
+            await interaction.response.send_message("❌ ليس لديك حساب بنكي لتحويل الأموال!", ephemeral=True)
+            return
+        await interaction.response.send_modal(TransferModal())
 
     @discord.ui.button(label="Deposit", style=discord.ButtonStyle.success, emoji="💵", row=1)
     async def deposit_money(self, interaction: discord.Interaction, button: discord.ui.Button):
-        embed = discord.Embed(title="📥 - Deposit", description="ميزة الإيداع قيد التفعيل...", color=discord.Color.from_str("#111111"))
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        c.execute("SELECT 1 FROM bank_accounts WHERE discord_id = ?", (interaction.user.id,))
+        if not c.fetchone():
+            await interaction.response.send_message("❌ ليس لديك حساب بنكي للإيداع فيه!", ephemeral=True)
+            return
+        await interaction.response.send_modal(DepositModal())
 
     @discord.ui.button(label="Withdraw", style=discord.ButtonStyle.success, emoji="💳", row=1)
     async def withdraw_money(self, interaction: discord.Interaction, button: discord.ui.Button):
-        embed = discord.Embed(title="📤 - Withdraw", description="ميزة السحب قيد التفعيل...", color=discord.Color.from_str("#111111"))
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        c.execute("SELECT 1 FROM bank_accounts WHERE discord_id = ?", (interaction.user.id,))
+        if not c.fetchone():
+            await interaction.response.send_message("❌ ليس لديك حساب بنكي للسحب منه!", ephemeral=True)
+            return
+        await interaction.response.send_modal(WithdrawModal())
 
 class MainBankView(discord.ui.View):
     def __init__(self):
