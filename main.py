@@ -81,6 +81,8 @@ BANK_IMAGE_URL = "https://cdn.discordapp.com/attachments/1530770369060016178/153
 @bot.event
 async def on_ready():
     print(f'Logged in as {bot.user.name}')
+    # تسجيل الـ Views الدائمة لكي لا تتوقف الأزرار عند إعادة تشغيل البوت
+    bot.add_view(TripControlView())
     for guild in bot.guilds:
         await setup_server_permissions(guild)
     print("Bot is online and running successfully!")
@@ -608,7 +610,7 @@ class TripControlView(discord.ui.View):
             return
         await interaction.response.send_modal(TripSetupModal())
 
-    @discord.ui.button(label="بدء رحلة", style=discord.ButtonStyle.green, custom_id="start_trip_permanent_btn", row=0)
+    @discord.ui.button(label="بدء رحلة", style=discord.ButtonStyle.green, emoji="✈️", custom_id="start_trip_permanent_btn", row=0)
     async def start_trip(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not has_trip_permission(interaction.user):
             await interaction.response.send_message("ليس لديك الصلاحية لاستخدام هذه الأزرار.", ephemeral=True)
@@ -619,7 +621,7 @@ class TripControlView(discord.ui.View):
         
         await interaction.response.send_message("🟢 تم بدء الرحلة بنجاح وأصبح متاحاً للجميع تسجيل الدخول بشخصياتهم.", ephemeral=True)
 
-    @discord.ui.button(label="إعصار", style=discord.ButtonStyle.red, custom_id="tornado_permanent_btn", row=1)
+    @discord.ui.button(label="إعصار", style=discord.ButtonStyle.danger, emoji="⚠️", custom_id="tornado_permanent_btn", row=1)
     async def tornado_action(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not has_trip_permission(interaction.user):
             await interaction.response.send_message("ليس لديك الصلاحية لاستخدام هذه الأزرار.", ephemeral=True)
@@ -647,13 +649,24 @@ class TripControlView(discord.ui.View):
         await target_channel.send(embed=embed_tornado)
         await interaction.response.send_message("⚠️ تم إرسال تنبيه الإعصار (الإيمبد) إلى الروم المحدد بنجاح.", ephemeral=True)
 
-    @discord.ui.button(label="تجديد", style=discord.ButtonStyle.blurple, custom_id="renew_permanent_btn", row=1)
+    @discord.ui.button(label="تجديد", style=discord.ButtonStyle.blurple, emoji="🔄", custom_id="renew_permanent_btn", row=1)
     async def renew_action(self, interaction: discord.Interaction, button: discord.ui.Button):
         if not has_trip_permission(interaction.user):
             await interaction.response.send_message("ليس لديك الصلاحية لاستخدام هذه الأزرار.", ephemeral=True)
             return
         
         await interaction.response.send_modal(TripRenewModal())
+
+    @discord.ui.button(label="إغلاق الرحلة", style=discord.ButtonStyle.grey, emoji="🔒", custom_id="close_trip_btn", row=1)
+    async def close_trip(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if not has_trip_permission(interaction.user):
+            await interaction.response.send_message("ليس لديك الصلاحية لاستخدام هذه الأزرار.", ephemeral=True)
+            return
+        
+        global current_trip_status
+        current_trip_status = False
+        
+        await interaction.response.send_message("🔒 تم إغلاق الرحلة وإيقاف تسجيل الدخول بنجاح.", ephemeral=True)
 
 # ==================== (أنظمة البنك المتقدمة والقوائم) ====================
 
