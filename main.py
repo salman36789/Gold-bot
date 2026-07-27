@@ -7,14 +7,12 @@ import asyncio
 import re
 from datetime import datetime
 
-# ==================== إعداد قاعدة البيانات الهيكلية ====================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_FILE = os.path.join(BASE_DIR, 'bot_database.db')
 
 conn = sqlite3.connect(DB_FILE, check_same_thread=False)
 c = conn.cursor()
 
-# 1. جدول الشخصيات والهويات (محفوظ بالكامل ولا يتأثر بحذف الرسائل)
 c.execute('''CREATE TABLE IF NOT EXISTS players (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, 
                 discord_id INTEGER, 
@@ -29,14 +27,12 @@ c.execute('''CREATE TABLE IF NOT EXISTS players (
                 status TEXT
             )''')
 
-# 2. جدول الرحلات
 c.execute('''CREATE TABLE IF NOT EXISTS trips (
              id INTEGER PRIMARY KEY AUTOINCREMENT,
              discord_id INTEGER,
              status TEXT
           )''')
 
-# 3. جدول الحسابات البنكية (رصيد افتراضي 5000)
 c.execute('''CREATE TABLE IF NOT EXISTS bank_accounts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT, 
                 discord_id INTEGER UNIQUE,
@@ -46,7 +42,6 @@ c.execute('''CREATE TABLE IF NOT EXISTS bank_accounts (
                 balance INTEGER DEFAULT 5000
             )''')
 
-# 4. جدول شنطة اللاعبين والأغراض (محفوظة بالكامل مع كل شخصية)
 c.execute('''CREATE TABLE IF NOT EXISTS user_inventory (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 discord_id INTEGER,
@@ -67,9 +62,8 @@ intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
-# ==================== المتغيرات الثابتة والرومات ====================
 LOG_CHANNEL_ID = 1530791985131032656
-TARGET_VERIFY_CHANNEL_ID = 1530770263598301225
+TARGET_VERIFY_CHANNEL_ID = 1530770263598301225  
 VOTING_CHANNEL_ID = 1531068507050217616  
 SPECIFIC_ROOM_ID = 1530770307357343895    
 TARGET_ACTION_ROOM_ID = 1530770304056557751  
@@ -77,7 +71,6 @@ BANK_LOG_CHANNEL_ID = 1531305086666412163
 REQUIRED_ROLE_NAME = "GT | Trip Support"
 
 BLACK_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop"
-CUSTOM_TRIP_IMAGE = "https://cdn.discordapp.com/attachments/1530770369060016178/1531093153854001275/IMG__.jpg?ex=6a67f51e&is=6a66a39e&hm=a1fa106680e5411b414810d4de090c586add9f6e4df1d137ec651dfe4233056b&"
 CHARACTER_SYSTEM_IMAGE = "https://cdn.discordapp.com/attachments/1530770369060016178/1531093153854001275/IMG__.jpg?ex=6a67f51e&is=6a66a39e&hm=a1fa106680e5411b414810d4de090c586add9f6e4df1d137ec651dfe4233056b&"
 BANK_IMAGE_URL = "https://cdn.discordapp.com/attachments/1530770369060016178/1531093153854001275/IMG__.jpg?ex=6a67f51e&is=6a66a39e&hm=a1fa106680e5411b414810d4de090c586add9f6e4df1d137ec651dfe4233056b&"
 
@@ -135,19 +128,32 @@ async def on_message(message):
 
     if message.channel.id == TARGET_VERIFY_CHANNEL_ID:
         try:
-            await message.add_reaction("🟡")
+            await message.delete()
+        except Exception:
+            pass
+
+        try:
             guild = message.guild
             member = message.author
+            content = message.content.strip()
+            
+            try:
+                await member.edit(nick=content)
+            except Exception as nick_err:
+                print(f"Note: Could not change nickname: {nick_err}")
             
             verified_role = discord.utils.get(guild.roles, name="Verified")
             unverified_role = discord.utils.get(guild.roles, name="Unverified")
+            inactive_role = discord.utils.get(guild.roles, name="Inactive")
             
             if verified_role and verified_role not in member.roles:
                 await member.add_roles(verified_role)
             if unverified_role and unverified_role in member.roles:
                 await member.remove_roles(unverified_role)
+            if inactive_role and inactive_role in member.roles:
+                await member.remove_roles(inactive_role)
                 
-            await message.channel.send(f"🟡 تم تفعيلك بنجاح يا {member.mention}! نورت السيرفر.", delete_after=5)
+            await message.channel.send(f"🟡 تم تفعيلك بنجاح يا {member.mention}! وتم تحديث اسمك إلى `{content}` وإزالة رتبة Inactive.", delete_after=5)
         except Exception as e:
             print(f"Error in auto-verify: {e}")
 
@@ -194,8 +200,6 @@ def validate_character_data(first_name, last_name, birthdate_str, gender, birthp
         return False, "❌ تم الرفض: مكان الولادة غير مسموح به. الأماكن المسموحة فقط هي: (Pollito, Sandy, Los)."
 
     return True, "تم بنجاح"
-
-# ==================== نظام الشخصيات (Modals & Views) ====================
 
 class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديدة'):
     first_name = discord.ui.TextInput(label='الاسم الأول (إنجليزي بدون مسافات)', placeholder='مثال: Jax...')
@@ -247,7 +251,6 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
         char_number = count + 1
         role_character_name = f"{f_name} {l_name}"
 
-        # حفظ الشخصية بقاعدة البيانات مع رصيد كاش افتراضي 1000
         c.execute("INSERT INTO players (discord_id, identity_id, first_name, last_name, birthdate, gender, birthplace, bio, balance, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
                   (user_id, new_identity, f_name, l_name, entered_birth, entered_gender, entered_place, "مقبول تلقائياً", 1000, 'active'))
         conn.commit()
@@ -445,8 +448,6 @@ class CharacterSelect(discord.ui.Select):
 class CharacterView(discord.ui.View):
     def __init__(self, timeout=None):
         super().__init__(timeout=timeout)
-
-# ==================== أنظمة البنك والقوائم التفاعلية ====================
 
 class DepositModal(discord.ui.Modal, title='إيداع أموال في البنك'):
     amount = discord.ui.TextInput(label='المبلغ المراد إيداعه', placeholder='أدخل المبلغ بالأرقام...')
@@ -706,8 +707,6 @@ class CreateBankAccountModal(discord.ui.Modal, title='إنشاء حساب بنك
         except Exception:
             embed_warn = discord.Embed(title="⚠️ - Warning", description="تم إنشاء حسابك بنجاح، ولكن تعذر إرسال الرسالة الخاصة تأكد من فتح رسائلك الخاصة (DM).", color=discord.Color.orange())
             await interaction.followup.send(embed=embed_warn, ephemeral=True)
-
-# ==================== أوامر التحكم (Commands) ====================
 
 @bot.command(name="trip")
 async def trip_command(ctx):
