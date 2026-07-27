@@ -45,12 +45,14 @@ bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
 
 LOG_CHANNEL_ID = 1530791985131032656
 TARGET_VERIFY_CHANNEL_ID = 1530770263598301225
-VOTING_CHANNEL_ID = 1531068507050217616  # روم التصويت والتحكم بالرحلات
-SPECIFIC_ROOM_ID = 1530770307357343895    # روم تزوير الهوية
+VOTING_CHANNEL_ID = 1531068507050217616  
+SPECIFIC_ROOM_ID = 1530770307357343895    
 REQUIRED_ROLE_NAME = "GT | Trip Support"
 
 BLACK_IMAGE_URL = "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop"
 CUSTOM_TRIP_IMAGE = "https://cdn.discordapp.com/attachments/1530770338319827046/1531089283333750824/IMG__.jpg?ex=6a67f183&is=6a66a003&hm=b42a4d387f6535474e956f3a206d4213d5f22739f2180b2981d56fb309a63e3f&"
+# الصورة الصحيحة الخاصة بلوحة إدارة الشخصيات بناءً على طلبك
+CHARACTER_SYSTEM_IMAGE = "https://cdn.discordapp.com/attachments/1530770338319827046/1531089283333750824/IMG__.jpg?ex=6a67f183&is=6a66a003&hm=b42a4d387f6535474e956f3a206d4213d5f22739f2180b2981d56fb309a63e3f&"
 
 @bot.event
 async def on_ready():
@@ -257,8 +259,8 @@ class RegistrationModal(discord.ui.Modal, title='إنشاء شخصية جديد�
             f"📍 **Birth Place |** `{entered_place}`\n\n"
             f"🪪 **ID Number |** `{new_identity}`"
         )
-        embed_accepted.set_thumbnail(url=BLACK_IMAGE_URL)
-        embed_accepted.set_image(url=BLACK_IMAGE_URL)
+        embed_accepted.set_thumbnail(url=CHARACTER_SYSTEM_IMAGE)
+        embed_accepted.set_image(url=CHARACTER_SYSTEM_IMAGE)
         embed_accepted.set_footer(text="© Gold Town System | 2026")
 
         try:
@@ -467,7 +469,6 @@ class CharacterView(discord.ui.View):
     def __init__(self, timeout=None):
         super().__init__(timeout=timeout)
 
-# استمارة إنشاء لوحة الرحلة (مع وضوح تفاصيل الهوست وإرفاق الصورة المحددة)
 class TripSetupModal(discord.ui.Modal, title='إنشاء وتثبيت لوحة الرحلة'):
     host_id = discord.ui.TextInput(label='آيدي الهوست (Host ID)', placeholder='أدخل آيدي الهوست الديسكورد...')
     co_host_id = discord.ui.TextInput(label='آيدي نائب الهوست (Co-Host ID)', placeholder='أدخل آيدي نائب الهوست...')
@@ -503,10 +504,8 @@ class TripSetupModal(discord.ui.Modal, title='إنشاء وتثبيت لوحة �
         voting_channel = bot.get_channel(VOTING_CHANNEL_ID)
         target_channel = voting_channel if voting_channel else interaction.channel
 
-        # نشر لوحة معلومات الرحلة في روم التصويت مع الصورة المخصصة
         await target_channel.send(embed=embed)
 
-        # إرسال أزرار التحكم (إعصار وتجديد وبدء الرحلة) في نفس روم التصويت حصراً مع تفاعل الإيموجي الذهبي فقط
         control_view = TripControlView()
         control_msg = await target_channel.send("⚙️ **لوحة التحكم السريعة للرحلة (إعصار، تجديد، وبدء الرحلة):**", view=control_view)
         try:
@@ -516,7 +515,6 @@ class TripSetupModal(discord.ui.Modal, title='إنشاء وتثبيت لوحة �
 
         await interaction.followup.send(f"🟡 تم نشر لوحة تحكم الرحلة والأزرار إلى روم التصويت بنجاح!", ephemeral=True)
 
-# استمارة تجديد الرحلة وتحديث آيدي الهوست ونائب الهوست وترسل التنبيه لروم التصويت
 class TripRenewModal(discord.ui.Modal, title='تجديد الرحلة وتحديث الهوست'):
     new_host_id = discord.ui.TextInput(label='آيدي الهوست الجديد (Host ID)', placeholder='أدخل آيدي الهوست الجديد...')
     new_co_host_id = discord.ui.TextInput(label='آيدي نائب الهوست الجديد (Co-Host ID)', placeholder='أدخل آيدي نائب الهوست الجديد...')
@@ -613,8 +611,8 @@ class TripSetupSelect(discord.ui.Select):
         await interaction.response.send_modal(TripSetupModal())
 
 class TripSetupView(discord.ui.View):
-    def __init__(self):
-        super().__init__(timeout=None)
+    def __init__(self, timeout=None):
+        super().__init__(timeout=timeout)
         self.add_item(TripSetupSelect())
 
 @bot.command(name="trip")
@@ -639,7 +637,8 @@ async def character_command(ctx):
         pass
         
     embed = discord.Embed(title="Character Management", description="Character Creation, Login & Logout System", color=discord.Color.from_str("#111111"))
-    embed.set_image(url=BLACK_IMAGE_URL)
+    # تم تحديث الصورة هنا لتصبح الصورة الصحيحة التي طلبتها
+    embed.set_image(url=CHARACTER_SYSTEM_IMAGE)
     
     view = CharacterView()
     view.add_item(CharacterSelect())
@@ -652,7 +651,7 @@ async def forge_command(ctx):
     players = c.fetchall()
     if players:
         embed_forge = discord.Embed(title="Forgery System", description="اختر الشخصية التي تريد تزويرها من القائمة أدناه:", color=discord.Color.from_str("#111111"))
-        embed_forge.set_image(url=BLACK_IMAGE_URL)
+        embed_forge.set_image(url=CHARACTER_SYSTEM_IMAGE)
         await ctx.send(embed=embed_forge, view=ForgeSelectView(players))
     else:
         await ctx.send("❌ ليس لديك أي شخصيات مسجلة لتزويرها!", delete_after=5)
@@ -670,4 +669,4 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
- 
+
