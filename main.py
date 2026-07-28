@@ -1,3 +1,4 @@
+import discord
 from discord.ext import commands, tasks
 import sqlite3
 import os
@@ -71,7 +72,12 @@ async def trip_check(ctx):
     result = c.fetchone()
     trip_active = result[0] == 'true' if result else False
     if not trip_active:
-        await ctx.send("❌ لا يمكنك استخدام هذا الأمر حالياً. الرحلة غير مفعلة.", ephemeral=True)
+        embed = discord.Embed(
+            title="🛑 الرحلة متوقفة",
+            description="عذراً، لا يمكنك استخدام هذا النظام حالياً لأن الرحلة (Trip) غير مفعلة من قبل الإدارة.\n\nيرجى الانتظار حتى يتم تفعيل الرحلة باستخدام أمر `!start_trip`.",
+            color=discord.Color.red()
+        )
+        await ctx.send(embed=embed, ephemeral=True)
         return False
     return True
 
@@ -81,7 +87,7 @@ intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
 
-bot = commands.Bot(command_prefix="!", intents=intents, help_command=None)
+bot = commands.Bot(command_prefix="!", intents=intents, help_command=None, case_insensitive=True)
 
 LOG_CHANNEL_ID = 1530791985131032656
 TARGET_VERIFY_CHANNEL_ID = 1530770263598301225  
@@ -1948,4 +1954,5 @@ async def clear_messages(ctx, amount: int = 10):
         pass
 
 bot.run(os.getenv('TOKEN'))
- 
+
+bot.run("YOUR_BOT_TOKEN_HERE")
